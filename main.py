@@ -27,7 +27,7 @@ edges = [
 
 class Camera:
     def __init__(self, pos: list[float], rot: list[float]):
-        self.pos = np.array(pos, dtype=float)
+        self.pos = np.array([*pos, 1.0], dtype=float)
         self.rot = np.array(rot, dtype=float)
 
     def get_rotation_matrix(self) -> np.ndarray:
@@ -98,23 +98,32 @@ def main():
         speed = 0.1
         rot_speed = 0.05
 
-        # Translation
-        if keys[pygame.K_w]: camera.pos[2] += speed # Forward
-        if keys[pygame.K_s]: camera.pos[2] -= speed # Bakcwards
-        if keys[pygame.K_a]: camera.pos[0] -= speed # Left
-        if keys[pygame.K_d]: camera.pos[0] += speed # Right
-        if keys[pygame.K_q]: camera.pos[1] -= speed # Up
-        if keys[pygame.K_e]: camera.pos[1] += speed # Down
-
         # Rotation
         if keys[pygame.K_UP]:    camera.rot[0] += rot_speed # Look up
         if keys[pygame.K_DOWN]:  camera.rot[0] -= rot_speed # Look down
-        if keys[pygame.K_LEFT]:  camera.rot[1] -= rot_speed # Look left 
+        if keys[pygame.K_LEFT]:  camera.rot[1] -= rot_speed # Look left
         if keys[pygame.K_RIGHT]: camera.rot[1] += rot_speed # Look right
         if keys[pygame.K_z]:     camera.rot[2] -= rot_speed # Rotate left
-        if keys[pygame.K_c]:     camera.rot[2] += rot_speed # Rotate right 
+        if keys[pygame.K_c]:     camera.rot[2] += rot_speed # Rotate right
 
-        view_matrix = np.linalg.inv(camera.get_model_matrix())
+        # Translation
+        move_dir = np.zeros(4)
+        move_dir[3] = 1.0
+        if keys[pygame.K_w]: move_dir[2] += speed # Forward
+        if keys[pygame.K_s]: move_dir[2] -= speed # Bakcwards
+        if keys[pygame.K_a]: move_dir[0] -= speed # Left
+        if keys[pygame.K_d]: move_dir[0] += speed # Right
+        if keys[pygame.K_q]: move_dir[1] -= speed # Up
+        if keys[pygame.K_e]: move_dir[1] += speed # Down
+        
+        if np.any(move_dir[:3] != 0.0):
+            rotation_matrix = camera.get_model_matrix()
+            move_dir = rotation_matrix @ move_dir
+            print(move_dir)
+            camera.pos = move_dir
+
+        model_matrix = camera.get_model_matrix()
+        view_matrix = np.linalg.inv(model_matrix)
         projected_points: list[tuple[int, int] | None] = []
 
         for v in vertices:
