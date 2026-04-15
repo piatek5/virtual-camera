@@ -75,14 +75,25 @@ class Camera:
 
         return t @ r
     
-    def to_projection_matrix(self, v: np.ndarray, fov: float = FOV):
+    def get_projection_matrix(self, fov: float = FOV) -> np.ndarray:
         fov_rad = math.radians(fov)
         f = 1.0 / math.tan(fov_rad / 2.0)
         
-        v[0] = (v[0] * f) / v[2]
-        v[1] = (v[1] * f) / v[2]
-        v[2] = 1.0
-        v[3] = 1.0
+        # Pusta macierz 4x4
+        proj = np.zeros((4, 4))
+        
+        # Skalowanie X i Y na podstawie FOV
+        proj[0, 0] = f
+        proj[1, 1] = f
+        
+        # Zachowujemy Z (później można tu dodać near/far planes)
+        proj[2, 2] = 1.0 
+        
+        # MAGIA: Przepisujemy Z do czwartego wymiaru W!
+        proj[3, 2] = 1.0 
+        proj[3, 3] = 0.0
+        
+        return proj
 
 @staticmethod
 def load_obj(filename: Path) -> tuple[np.ndarray, list[tuple[int, int]]]:
@@ -119,8 +130,9 @@ def main():
 
     folder = Path(FOLDER)
     file_path = folder / FILE
-
     vertices, edges = load_obj(file_path)
+
+    current_fov = FOV
 
     running = True
     while running:
@@ -130,18 +142,26 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.MOUSEWHEEL:
+                current_fov -= event.y * 5 
+                current_fov = max(10.0, min(170.0, current_fov))
 
         keys = pygame.key.get_pressed()
         speed = 0.1
         rot_speed = 0.05
 
+        # Scale
+        if keys[pygame.K_EQUALS] or keys[pygame.K_KP_PLUS]: current_fov -= 1.0 # Zoom
+        if keys[pygame.K_MINUS] or keys[pygame.K_KP_MINUS]: current_fov += 1.0 # Unzoom
+        current_fov = max(10.0, min(170.0, current_fov))
+
         # Rotation
-        if keys[pygame.K_UP]:    camera.rot[0] += rot_speed # Look up
-        if keys[pygame.K_DOWN]:  camera.rot[0] -= rot_speed # Look down
-        if keys[pygame.K_LEFT]:  camera.rot[1] -= rot_speed # Look left
+        if keys[pygame.K_UP]: camera.rot[0] += rot_speed # Look up
+        if keys[pygame.K_DOWN]: camera.rot[0] -= rot_speed # Look down
+        if keys[pygame.K_LEFT]: camera.rot[1] -= rot_speed # Look left
         if keys[pygame.K_RIGHT]: camera.rot[1] += rot_speed # Look right
-        if keys[pygame.K_z]:     camera.rot[2] -= rot_speed # Rotate left
-        if keys[pygame.K_c]:     camera.rot[2] += rot_speed # Rotate right
+        if keys[pygame.K_z]: camera.rot[2] -= rot_speed # Rotate left
+        if keys[pygame.K_c]: camera.rot[2] += rot_speed # Rotate right
 
         # Translation
         move_dir = np.zeros(4)
@@ -160,6 +180,8 @@ def main():
 
         model_matrix = camera.get_model_matrix()
         view_matrix = np.linalg.inv(model_matrix)
+        proj_matrix = camera.get_projection_matrix(fov=current_fov)
+
         projected_points: list[tuple[int, int] | None] = []
 
         for v in vertices:
@@ -167,11 +189,18 @@ def main():
             v_view = view_matrix @ v_4d 
 
             if v_view[2] > 0.01:
-                camera.to_projection_matrix(v_view)
+                v_proj = proj_matrix @ v_view
                 
+                w = v_proj[3]
+                if w != 0:
+                    v_proj[0] /= w
+                    v_proj[1] /= w
+                    v_proj[2] /= w
+                    v_proj[3] = 1.0
+
                 scale = WIDTH / 2
-                screen_x = int(v_view[0] * scale + WIDTH / 2)
-                screen_y = int(v_view[1] * scale + HEIGHT / 2)
+                screen_x = int(v_proj[0] * scale + WIDTH / 2)
+                screen_y = int(v_proj[1] * scale + HEIGHT / 2)
                 
                 projected_points.append((screen_x, screen_y))
             else:
