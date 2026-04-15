@@ -12,3 +12,6 @@ wheels/
 # solids dir
 solids/*
 !solids/.gitignore
+
+# screenshots
+screenshots/*

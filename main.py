@@ -1,3 +1,4 @@
+from datetime import datetime
 import math
 import sys
 
@@ -6,29 +7,13 @@ import pygame
 import numpy as np
 
 FOLDER = 'solids'
-FILE = '8d.obj'
+FILE = 'city.obj'
 
 WIDTH = 800
 HEIGHT = 600
 FPS = 60
 FOV = 90
 
-vertices = np.array([
-    [-1, -1, -1],
-    [ 1, -1, -1],
-    [ 1,  1, -1],
-    [-1,  1, -1],
-    [-1, -1,  1],
-    [ 1, -1,  1],
-    [ 1,  1,  1],
-    [-1,  1,  1]
-])
-
-edges = [
-    (0, 1), (1, 2), (2, 3), (3, 0), # Back
-    (4, 5), (5, 6), (6, 7), (7, 4), # Front
-    (0, 4), (1, 5), (2, 6), (3, 7)  # Inbetween
-]
 
 class Camera:
     def __init__(self, pos: list[float], rot: list[float]):
@@ -132,7 +117,13 @@ def main():
     file_path = folder / FILE
     vertices, edges = load_obj(file_path)
 
+    font = pygame.font.SysFont('Arial', 18)
+
+    Path("screenshots").mkdir(exist_ok=True)
+
     current_fov = FOV
+
+    take_screenshot = False
 
     running = True
     while running:
@@ -145,6 +136,9 @@ def main():
             elif event.type == pygame.MOUSEWHEEL:
                 current_fov -= event.y * 5 
                 current_fov = max(10.0, min(170.0, current_fov))
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F12:
+                    take_screenshot = True
 
         keys = pygame.key.get_pressed()
         speed = 0.1
@@ -211,7 +205,23 @@ def main():
             p2 = projected_points[edge[1]]
             
             if p1 is not None and p2 is not None:
-                    pygame.draw.line(screen, (0, 255, 0), p1, p2, 2)
+                pygame.draw.line(screen, (0, 255, 0), p1, p2, 2)
+
+        rot_deg = np.degrees(camera.rot)
+        pos_text = font.render(f"XYZ: {camera.pos[0]:.2f}, {camera.pos[1]:.2f}, {camera.pos[2]:.2f}", True, (255, 255, 255))
+        rot_text = font.render(f"ROT: {rot_deg[0]:.0f}°, {rot_deg[1]:.0f}°, {rot_deg[2]:.0f}°", True, (255, 255, 255))
+        fov_text = font.render(f"FOV: {current_fov:.0f}°", True, (255, 255, 255))
+
+        screen.blit(pos_text, (10, 10))
+        screen.blit(rot_text, (10, 30))
+        screen.blit(fov_text, (10, 50))
+
+        if take_screenshot:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"screenshots/screenshot_{timestamp}.png"
+            pygame.image.save(screen, filename)
+            print(f"Zapisano: {filename}")
+            take_screenshot = False 
 
         pygame.display.flip()
 
