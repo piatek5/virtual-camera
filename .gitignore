@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# solids dir
+solids/*
+!solids/.gitignore

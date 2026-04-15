@@ -1,12 +1,17 @@
 import math
 import sys
 
+from pathlib import Path
 import pygame
 import numpy as np
+
+FOLDER = 'solids'
+FILE = '8d.obj'
 
 WIDTH = 800
 HEIGHT = 600
 FPS = 60
+FOV = 90
 
 vertices = np.array([
     [-1, -1, -1],
@@ -70,12 +75,39 @@ class Camera:
 
         return t @ r
     
-    # TODO add fov param
-    def to_projection_matrix(self, v: np.ndarray, d: float = 1):
-        v[0] = (v[0] * d) / v[2]
-        v[1] = (v[1] * d) / v[2]
-        v[2] = d
+    def to_projection_matrix(self, v: np.ndarray, fov: float = FOV):
+        fov_rad = math.radians(fov)
+        f = 1.0 / math.tan(fov_rad / 2.0)
+        
+        v[0] = (v[0] * f) / v[2]
+        v[1] = (v[1] * f) / v[2]
+        v[2] = 1.0
         v[3] = 1.0
+
+@staticmethod
+def load_obj(filename: Path) -> tuple[np.ndarray, list[tuple[int, int]]]:
+    vertices: list[list[float]] = []
+    edges: set[tuple[int, int]] = set()
+    with open(filename) as file:
+        for line in file:
+            parts = line.strip().split()
+            if not parts:
+                continue
+            elif parts[0] == 'v':
+                xyz = [float(parts[1]), float(parts[2]), float(parts[3])]
+                vertices.append(xyz)
+            elif parts[0] == 'f':
+                face_indices = [int(p.split('/')[0]) - 1 for p in parts[1:]]
+                
+                for i in range(len(face_indices)):
+                    p1 = face_indices[i]
+                    p2 = face_indices[(i + 1) % len(face_indices)]
+                    
+                    edge = (min(p1, p2), max(p1, p2))
+                    edges.add(edge)
+
+    return np.array(vertices), list(edges)
+
 
 def main():
     pygame.init()
@@ -84,6 +116,11 @@ def main():
     clock = pygame.time.Clock()
 
     camera = Camera([0, 0, -5], [0, 0, 0])
+
+    folder = Path(FOLDER)
+    file_path = folder / FILE
+
+    vertices, edges = load_obj(file_path)
 
     running = True
     while running:
@@ -119,7 +156,6 @@ def main():
         if np.any(move_dir[:3] != 0.0):
             rotation_matrix = camera.get_model_matrix()
             move_dir = rotation_matrix @ move_dir
-            print(move_dir)
             camera.pos = move_dir
 
         model_matrix = camera.get_model_matrix()
