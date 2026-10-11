@@ -4,18 +4,26 @@ from datetime import datetime
 import math
 import sys
 
+from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 import pygame
 import numpy as np
 
 # Solid location seletion
 FOLDER = 'solids'
-FILE = '8cube.obj'
+FILE = 'cube.obj'
 
 WIDTH = 1600
 HEIGHT = 1200
 FPS = 60
 FOV = 90
+
+
+@dataclass
+class vertices_d:
+    cords: list[np.ndarray] = field(default_factory=list)
+    neighbours: dict[int, list[int]] = field(default_factory=lambda: defaultdict(list))
 
 
 class Camera:
@@ -85,8 +93,9 @@ class Camera:
         t = self.get_translation_matrix()
 
         return t @ r
-    
-    def get_projection_matrix(self, fov: float = FOV) -> np.ndarray:
+
+    @staticmethod
+    def get_projection_matrix(fov: float = FOV) -> np.ndarray:
         """Create a perspective projection matrix.
 
         Args:
@@ -97,20 +106,34 @@ class Camera:
         """
         fov_rad = math.radians(fov)
         f = 1.0 / math.tan(fov_rad / 2.0)
-        
-        proj = np.zeros((4, 4))
-        
-        proj[0, 0] = f
-        proj[1, 1] = f
-        
-        proj[2, 2] = 1.0 
-        
-        proj[3, 2] = 1.0 
-        proj[3, 3] = 0.0
+
+        proj = np.array([
+                    [f, 0, 0, 0],
+                    [0, f, 0, 0],
+                    [0, 0, 1, 0],
+                    [0, 0, 1, 0]
+                ])
         
         return proj
 
-def load_obj(filename: Path) -> tuple[np.ndarray, list[tuple[int, int]]]:
+    @staticmethod
+    def norm_scale(v_proj):
+        w = v_proj[3]
+        # Divide by w to get the normalization
+        if w != 0:
+            v_proj[0] /= w
+            v_proj[1] /= w
+            v_proj[2] /= w
+            v_proj[3] = 1.0
+
+        # Scale the points from normalized values (-1,1)
+        scale = WIDTH / 2
+        screen_x = int(v_proj[0] * scale + WIDTH / 2)
+        screen_y = int(v_proj[1] * scale + HEIGHT / 2)
+
+        return screen_x, screen_y
+
+def load_obj(filename: Path) -> tuple[vertices_d, set[tuple[int, int]]]:
     """Load vertex and edge data from a Wavefront OBJ file.
 
     Args:
@@ -119,7 +142,7 @@ def load_obj(filename: Path) -> tuple[np.ndarray, list[tuple[int, int]]]:
     Returns:
         A tuple containing a numpy array of vertices and a list of unique edges.
     """
-    vertices: list[list[float]] = []
+    vertices: vertices_d = vertices_d()
     edges: set[tuple[int, int]] = set()
     with open(filename) as file:
         for line in file:
@@ -127,8 +150,8 @@ def load_obj(filename: Path) -> tuple[np.ndarray, list[tuple[int, int]]]:
             if not parts:
                 continue
             elif parts[0] == 'v':
-                xyz = [float(parts[1]), float(parts[2]), float(parts[3])]
-                vertices.append(xyz)
+                xyz = np.array((float(parts[1]), float(parts[2]), float(parts[3])))
+                vertices.cords.append(xyz)
             elif parts[0] == 'f':
                 # Skipping anything after a "/" in indice description
                 face_indices = [int(p.split('/')[0]) - 1 for p in parts[1:]]
@@ -139,8 +162,10 @@ def load_obj(filename: Path) -> tuple[np.ndarray, list[tuple[int, int]]]:
                     
                     edge = (min(p1, p2), max(p1, p2))
                     edges.add(edge)
+                    vertices.neighbours[p1].append(p2)
+                    vertices.neighbours[p2].append(p1)
 
-    return np.array(vertices), list(edges)
+    return vertices, edges
 
 
 def main():
@@ -233,40 +258,50 @@ def main():
 
         projected_points: list[tuple[int, int] | None] = []
 
-        for v in vertices:
+        for i, v in enumerate(vertices.cords):
             v_4d = np.array([v[0], v[1], v[2], 1.0])
             # Apply view matrix
             v_view = view_matrix @ v_4d 
 
-            # Don't take into account anything behind
-            if v_view[2] > 0.01:
+            # If current vertice is in back
+            if v_view[2] < 0.01:
+                idxs_v_neighbours = vertices.neighbours[i]
+                for idx_v_neigh in idxs_v_neighbours:
+                    # Apply view matrix to neighbour vertice
+                    v_neigh = vertices.cords[idx_v_neigh]
+                    v_neigh_4d = np.concatenate((v_neigh, [1.0]))
+                    v_neigh_view = view_matrix @ v_neigh_4d
+                    # If neighbour vertice is in front
+                    if v_neigh_view[2] >= 0.01:
+                        u_vect = v_neigh_view - v_view
+                        z = 0.01
+                        t = (z - v_view[2]) / u_vect[2]
+                        y = v_view[1] + t * u_vect[1]
+                        x = v_view[0] + t * u_vect[0]
+                        # Apply projection, normalize and scale neighbour vertice
+                        v_neigh_proj = proj_matrix @ v_neigh_view
+                        v_neigh_norm = camera.norm_scale(v_neigh_proj)
+                        # Apply projection, normalize and scale new vertice
+                        v_mid_view = np.array((x, y, z, 1.0))
+                        v_mid_proj = proj_matrix @ v_mid_view
+                        v_mid_norm = camera.norm_scale(v_mid_proj)
 
+                        pygame.draw.line(screen, (0, 255, 0), v_mid_norm, v_neigh_norm, 2)
+
+                projected_points.append(None)
+            else:
                 # Apply projection matrix
                 v_proj = proj_matrix @ v_view
-                
-                w = v_proj[3]
-                # Divide by w to get the normalization
-                if w != 0:
-                    v_proj[0] /= w
-                    v_proj[1] /= w
-                    v_proj[2] /= w
-                    v_proj[3] = 1.0
-
-                # Scale the points from normalized values (-1,1)
-                scale = WIDTH / 2
-                screen_x = int(v_proj[0] * scale + WIDTH / 2)
-                screen_y = int(v_proj[1] * scale + HEIGHT / 2)
+                # Normalize and scale
+                screen_x, screen_y = camera.norm_scale(v_proj)
                 
                 projected_points.append((screen_x, screen_y))
-            else:
-                # Anything vertice behind the camera is None
-                projected_points.append(None)
 
         for edge in edges:
             p1 = projected_points[edge[0]]
             p2 = projected_points[edge[1]]
             
-            # Don't draw any edge with a None vertice
+            # Don't draw any edge with a None (hidden) vertice
             if p1 is not None and p2 is not None:
                 pygame.draw.line(screen, (0, 255, 0), p1, p2, 2)
 
