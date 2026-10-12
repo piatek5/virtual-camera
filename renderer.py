@@ -11,59 +11,58 @@ class Renderer:
         self.height = camera.HEIGHT
         self.screen = screen
 
-    def render(self, vertices: vertices_d, edges: set[tuple[int, int]]):
+    def render(self, vertices: vertices_d, polygons: list[list[int]]):
         model_matrix = self.camera.get_model_matrix()
         view_matrix = np.linalg.inv(model_matrix)
         proj_matrix = self.camera.get_projection_matrix()
         
-        projected_points: list[tuple[int, int] | None] = []
+        for polygon in polygons:
+            views = []
+            # Calculate view vertices ahead of time
+            for i in range(len(polygon)):
+                vert_4d = np.concatenate((vertices.cords[polygon[i]], [1.0]))
+                vert_view = view_matrix @ vert_4d
+                views.append(vert_view)
 
-        for i, v in enumerate(vertices.cords):
-            v_4d = np.array([v[0], v[1], v[2], 1.0])
-            # Apply view matrix
-            v_view = view_matrix @ v_4d 
+            clipped_views = []
+            z_near = 0.01
+            # Go through every vertice pair of a polygon to check 
+            # if some edges need to be clipped
+            for i in range(len(polygon)):
+                a_view = views[i]
+                b_idx = (i + 1) % len(polygon)
+                b_view = views[b_idx]
+                a_infront = a_view[2] >= 0.01
+                b_infront = b_view[2] >= 0.01
+                if a_infront or b_infront:
+                    if not (a_infront and b_infront):
+                        # Calculate the intersection point 
+                        # of edge and near plane (clipping point)
+                        u = a_view - b_view 
+                        t = (z_near - b_view[2]) / u[2]
+                        y = b_view[1] + t * u[1]
+                        x = b_view[0] + t * u[0]
 
-            # If current vertice is in back
-            if v_view[2] < 0.01:
-                idxs_v_neighbours = vertices.neighbours[i]
-                for idx_v_neigh in idxs_v_neighbours:
-                    # Apply view matrix to neighbour vertice
-                    v_neigh = vertices.cords[idx_v_neigh]
-                    v_neigh_4d = np.concatenate((v_neigh, [1.0]))
-                    v_neigh_view = view_matrix @ v_neigh_4d
-                    # If neighbour vertice is in front
-                    if v_neigh_view[2] >= 0.01:
-                        u_vect = v_neigh_view - v_view
-                        z = 0.01
-                        t = (z - v_view[2]) / u_vect[2]
-                        y = v_view[1] + t * u_vect[1]
-                        x = v_view[0] + t * u_vect[0]
-                        # Apply projection, normalize and scale neighbour vertice
-                        v_neigh_proj = proj_matrix @ v_neigh_view
-                        v_neigh_norm = self.norm_scale(v_neigh_proj)
-                        # Apply projection, normalize and scale new vertice
-                        v_mid_view = np.array((x, y, z, 1.0))
-                        v_mid_proj = proj_matrix @ v_mid_view
-                        v_mid_norm = self.norm_scale(v_mid_proj)
+                        # Keep one of the vertices that happens to be visible
+                        if a_infront:
+                            clipped_views.append(a_view)
 
-                        pygame.draw.line(self.screen, (0, 255, 0), v_mid_norm, v_neigh_norm, 2)
+                        clipped_views.append(np.array((x, y, z_near, 1.0)))
 
-                projected_points.append(None)
-            else:
-                # Apply projection matrix
-                v_proj = proj_matrix @ v_view
-                # Normalize and scale
-                screen_x, screen_y = self.norm_scale(v_proj)
-                
-                projected_points.append((screen_x, screen_y))
+                    else:
+                        clipped_views.append(a_view)
 
-        for edge in edges:
-            p1 = projected_points[edge[0]]
-            p2 = projected_points[edge[1]]
-            
-            # Don't draw any edge with a None (hidden) vertice
-            if p1 is not None and p2 is not None:
-                pygame.draw.line(self.screen, (0, 255, 0), p1, p2, 2)
+            # Minimum for a polygon
+            if len(clipped_views) >= 3:
+                screen_vertices= []
+                # Apply the projection matrix and normalization 
+                # to every (clipped) view vertice
+                for v_view in clipped_views:
+                    v_proj = proj_matrix @ v_view
+                    v_norm = self.norm_scale(v_proj)
+                    screen_vertices.append(v_norm)
+
+                pygame.draw.polygon(self.screen, (0, 255, 0), screen_vertices)
 
     def norm_scale(self, v_proj):
         w = v_proj[3]

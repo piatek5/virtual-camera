@@ -31,7 +31,7 @@ def main():
 
     folder = Path(FOLDER)
     file_path = folder / FILE
-    vertices, edges = load_obj(file_path)
+    vertices, polygons = load_obj(file_path)
 
     font = pygame.font.SysFont('Arial', 18)
 
@@ -102,7 +102,7 @@ def main():
 
         # Render vertices and edges
         renderer = Renderer(camera, screen)
-        renderer.render(vertices, edges)
+        renderer.render(vertices, polygons)
 
         rot_deg = (np.degrees(camera.rot) % 360)
         # Positional and FOV information

@@ -10,7 +10,7 @@ class vertices_d:
     neighbours: dict[int, list[int]] = field(default_factory=lambda: defaultdict(list))
 
 
-def load_obj(filename: Path) -> tuple[vertices_d, set[tuple[int, int]]]:
+def load_obj(filename: Path) -> tuple[vertices_d, list[list[int]]]:
     """Load vertex and edge data from a Wavefront OBJ file.
 
     Args:
@@ -20,7 +20,7 @@ def load_obj(filename: Path) -> tuple[vertices_d, set[tuple[int, int]]]:
         A tuple containing a numpy array of vertices and a list of unique edges.
     """
     vertices: vertices_d = vertices_d()
-    edges: set[tuple[int, int]] = set()
+    polygons: list[list[int]] = []
     with open(filename) as file:
         for line in file:
             parts = line.strip().split()
@@ -36,10 +36,9 @@ def load_obj(filename: Path) -> tuple[vertices_d, set[tuple[int, int]]]:
                 for i in range(len(face_indices)):
                     p1 = face_indices[i]
                     p2 = face_indices[(i + 1) % len(face_indices)]
-                    
-                    edge = (min(p1, p2), max(p1, p2))
-                    edges.add(edge)
                     vertices.neighbours[p1].append(p2)
                     vertices.neighbours[p2].append(p1)
 
-    return vertices, edges
+                polygons.append(face_indices)
+
+    return vertices, polygons
