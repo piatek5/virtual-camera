@@ -91,7 +91,6 @@ class Renderer:
             pygame.draw.polygon(self.screen, color, screen_coords.tolist())        
 
     def norm_scale(self, coords: np.ndarray) -> np.ndarray:
-        scale = self.width / 2
         x = coords[:, 0]
         y = coords[:, 1]
         w = coords[:, 3]
@@ -103,8 +102,10 @@ class Renderer:
         norm_y = y / w
 
         # Scale values by screen width and height
-        screen_x = (norm_x * scale + self.width / 2)
-        screen_y = (norm_y * scale + self.height / 2)
+        scale_x = self.width
+        scale_y = self.height
+        screen_x = (norm_x * scale_x / 2 + self.width / 2)
+        screen_y = (-norm_y * scale_y / 2 + self.height / 2)
 
         points_2d = np.column_stack((screen_x, screen_y))
 

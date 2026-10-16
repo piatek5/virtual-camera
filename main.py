@@ -58,8 +58,7 @@ def main():
                     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                     filename = f"screenshots/screenshot_{timestamp}.png"
                     pygame.image.save(screen, filename)
-                    print(f"Zapisano: {filename}")
-                    take_screenshot = False 
+                    print(f"Saved: {filename}")
                 # Reset position, rotaion and FOV with R
                 if event.key == pygame.K_r:
                     camera.pos = starting_pos
@@ -79,22 +78,21 @@ def main():
         camera.fov = max(10.0, min(170.0, camera.fov))
 
         # Rotation
-        if keys[pygame.K_UP]: camera.rot[0] += rot_speed # Look up
-        if keys[pygame.K_DOWN]: camera.rot[0] -= rot_speed # Look down
+        if keys[pygame.K_UP]: camera.rot[0] -= rot_speed # Look up
+        if keys[pygame.K_DOWN]: camera.rot[0] += rot_speed # Look down
         if keys[pygame.K_LEFT]: camera.rot[1] -= rot_speed # Look left
         if keys[pygame.K_RIGHT]: camera.rot[1] += rot_speed # Look right
         if keys[pygame.K_z]: camera.rot[2] -= rot_speed # Rotate left
         if keys[pygame.K_c]: camera.rot[2] += rot_speed # Rotate right
-
         # Translation
         move_delta = np.zeros(4) # Tracking only the delta movement vector
         move_delta[3] = 1.0
         if keys[pygame.K_w]: move_delta[2] += speed # Forward
-        if keys[pygame.K_s]: move_delta[2] -= speed # Bakcwards
-        if keys[pygame.K_a]: move_delta[0] -= speed # Left
+        if keys[pygame.K_s]: move_delta[2] -= speed # Backwards
         if keys[pygame.K_d]: move_delta[0] += speed # Right
-        if keys[pygame.K_q]: move_delta[1] -= speed # Up
-        if keys[pygame.K_e]: move_delta[1] += speed # Down
+        if keys[pygame.K_a]: move_delta[0] -= speed # Left
+        if keys[pygame.K_q]: move_delta[1] += speed # Up
+        if keys[pygame.K_e]: move_delta[1] -= speed # Down
         
         # Rotate and translate the small movement delta vector
         if np.any(move_delta[:3] != 0.0):

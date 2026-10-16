@@ -85,11 +85,13 @@ class Camera:
             A 4x4 numpy array that projects 3D points into clip space.
         """
         fov_rad = math.radians(self.fov)
-        f = 1.0 / math.tan(fov_rad / 2.0)
+        aspect_ratio_x = self. HEIGHT / self.WIDTH
+        fx = aspect_ratio_x / math.tan(fov_rad / 2.0)
+        fy = 1.0 / math.tan(fov_rad / 2.0)
 
         proj = np.array([
-                    [f, 0, 0, 0],
-                    [0, f, 0, 0],
+                    [fx, 0, 0, 0],
+                    [0, fy, 0, 0],
                     [0, 0, 1, 0],
                     [0, 0, 1, 0]
                 ])
