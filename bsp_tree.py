@@ -1,32 +1,46 @@
 import numpy as np
 
 from dataclasses import dataclass
-from random import randint
+import random
 
 EPSILON = 1e-5
+
 
 @dataclass
 class Plane:
     n: np.ndarray
     d: float
 
+@dataclass
+class Polygon:
+    coords: np.ndarray
+    plane: Plane
+
+
 class Node:
     def __init__(self, plane) -> None:
         self.front: Node | None = None
         self.back: Node | None = None
-        self._polygon_coords_list = [] # All the coplanar polygons
+        self._polygon_coords_list: list[np.ndarray] = [] # All the coplanar polygons
         self.plane: Plane = plane
-        self.color: tuple[int, ...] = (randint(0, 255), randint(0, 255), randint(0, 255)) # TODO: Temporary showcase measure
+        self.color: tuple[int, ...] = (
+            random.randint(0, 255), 
+            random.randint(0, 255), 
+            random.randint(0, 255)
+        ) # TODO: Temporary showcase measure
 
     def add_polygon_coords(self, polygon_coords: np.ndarray):
         self._polygon_coords_list.append(polygon_coords)
 
     def get_polygon_coords(self):
         return self._polygon_coords_list
+    
 
 class BSP_tree:
     def __init__(self) -> None:
         self.root: Node | None = None
+        self.lam = 0.25
+        self.plane_check_num = 10
 
     @staticmethod
     def get_plane(polygon_coords: np.ndarray) -> Plane:
@@ -37,7 +51,8 @@ class BSP_tree:
             polygon_coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon vertice coordinates.
 
         Raises:
-            ValueError: _description_
+            ValueError: If number of polygon vertices is <= 2
+            ValueError: If polygon vertices are colinear (within EPSILON)
 
         Returns:
             Plane: Plane object (unit normal vector and distance from origin).
@@ -77,42 +92,47 @@ class BSP_tree:
 
         Returns:
             Node | None: BSP tree root node.
-        """
-        if not polygons:
-            return None
-
-        # Combine polygon descriptions with vertice coordinates
-        polygon_coords_list = [coords[polygon] for polygon in polygons]
+        """     
+        # Combine and filter polygon input.
+        polygon_coords_list = self._transform_input(coords, polygons)
 
         self.root = self._build_from_coords(polygon_coords_list)
+
         return self.root
 
-    def _build_from_coords(self, polygon_coords_list: list[np.ndarray]) -> Node | None:
-        if not polygon_coords_list:
-            return None
-
-        plane = None
-        root_idx = 0
-        # Pick another polygon if get_plane fails
-        for idx, polygon_coords in enumerate(polygon_coords_list):
+    def _transform_input(self, coords: np.ndarray, polygons: list[list[int]]
+    ) -> list[Polygon]:
+        """Combines input polygon description into a list of Polygon objects 
+        and filters out damaged/incorrect polygons.
+        """
+        polygon_coords_list = []
+        for polygon_indexed in polygons:
+            polygon_coords = coords[polygon_indexed]
             try:
                 plane = self.get_plane(polygon_coords)
             except ValueError as e:
                 err = ValueError(
-                    f"Error building a BSP node. Damaged polygon: {polygon_coords}"
+                    f"Error building a BSP node. Damaged polygon: {polygon_coords}. Skipping."
                 )
                 err.__cause__ = e
                 continue
 
-            root_idx = idx
-            break
+            polygon_obj = Polygon(polygon_coords, plane)
+            polygon_coords_list.append(polygon_obj)
 
-        # If no plane was left
-        if plane is None:
+        return polygon_coords_list
+
+    def _build_from_coords(self, polygon_list: list[Polygon]) -> Node | None:
+        if not polygon_list:
+            return None
+
+        root_polygon = self._pick_best_polygon(polygon_list)
+
+        if root_polygon is None:
             return None
             
-        node = Node(plane)
-        node.add_polygon_coords(polygon_coords_list[root_idx])
+        node = Node(root_polygon.plane)
+        node.add_polygon_coords(root_polygon.coords)
 
         front_list = []
         back_list = []
@@ -120,8 +140,12 @@ class BSP_tree:
         # Go through every polygon to determine it being in front or at the 
         # back of current node polygon/plane. May need to split it and classify
         # it accordingly.
-        for polygon_coords in polygon_coords_list[root_idx+1:]:
-            classification, poly_front, poly_back = self._split_polygon(plane, polygon_coords)
+        for polygon in polygon_list:
+            if polygon is root_polygon:
+                continue
+
+            classification, poly_front, poly_back = self._split_polygon(
+                polygon, root_polygon.plane)
 
             if classification == "SPANNING":
                 front_list.append(poly_front)
@@ -131,14 +155,46 @@ class BSP_tree:
             elif classification == "BACK":
                 back_list.append(poly_back)
             elif classification == "COPLANAR":
-                node.add_polygon_coords(polygon_coords_list[root_idx])
+                node.add_polygon_coords(polygon.coords)
 
         node.front = self._build_from_coords(front_list)
         node.back = self._build_from_coords(back_list)
         return node
 
-    def _split_polygon(self, plane: Plane, polygon_coords: np.ndarray
-    ) -> tuple[str, np.ndarray | None, np.ndarray | None]:
+    def _pick_best_polygon(self, polygon_list: list[Polygon]
+    ) -> Polygon | None:
+        best_polygon, best_cost = None, np.inf
+
+        num_to_check = min(len(polygon_list), self.plane_check_num)
+        random_polygons = random.sample(polygon_list, num_to_check)
+
+        # Check some (as set in class attributes) random polygons and pick
+        # the best fit for representing a current root
+        for polygon in random_polygons:
+            front, back, splits = self._classify_counts(polygon, polygon_list)
+            cost = splits + self.lam * abs(front - back)
+            
+            if cost < best_cost:
+                best_cost = cost
+                best_polygon = polygon
+
+        return best_polygon
+
+    def _classify_counts(self, ref_polygon: Polygon, polygon_list: list[Polygon]):
+        front, back, splits = 0, 0, 0
+        for curr_polygon in polygon_list:
+            if curr_polygon is ref_polygon:
+                continue
+            ref_plane = ref_polygon.plane
+            dist = curr_polygon.coords @ ref_plane.n + ref_plane.d
+            f, b = np.any(dist > EPSILON), np.any(dist < -EPSILON)
+            if f and b: splits += 1
+            elif f: front += 1
+            elif b: back += 1
+        return front, back, splits
+
+    def _split_polygon(self, polygon: Polygon, plane: Plane
+    ) -> tuple[str, Polygon | None, Polygon | None]:
         """Determines whether a polygon is in front of or behind the given
         plane and splits it into two if an intersection occurs. Does not return
         two-vertice shapes.
@@ -154,19 +210,19 @@ class BSP_tree:
                 - Vertice coordinates behind
         """
         n, d = plane.n, plane.d
-        num_verts = len(polygon_coords)
+        num_verts = polygon.coords.shape[0]
 
         # Calculate distances from plane in advance.
         # Apply normal vector and add distance from origin d to every vertice.
-        distances = polygon_coords @ n + d
+        distances = polygon.coords @ n + d
 
         front_verts = []
         back_verts = []
         coplanar_count = 0
 
         for i in range(num_verts):
-            v_a = polygon_coords[i]
-            v_b = polygon_coords[(i + 1) % num_verts]
+            v_a = polygon.coords[i]
+            v_b = polygon.coords[(i + 1) % num_verts]
             d_a = distances[i]
             d_b = distances[(i + 1) % num_verts]
 
@@ -193,13 +249,15 @@ class BSP_tree:
                 front_verts.append(intersection)
                 back_verts.append(intersection)
 
-        if coplanar_count >= 3 and coplanar_count == polygon_coords.shape[0]:
-            return "COPLANAR", polygon_coords, polygon_coords
+        if coplanar_count >= 3 and coplanar_count == num_verts:
+            return "COPLANAR", polygon, polygon
         elif len(front_verts) >= 3 and len(back_verts) >= 3:
-            return "SPANNING", np.array(front_verts), np.array(back_verts)
+            return ("SPANNING",
+                Polygon(np.array(front_verts), polygon.plane),
+                Polygon(np.array(back_verts), polygon.plane))
         elif len(front_verts) >= 3:
-            return "FRONT", polygon_coords, None
+            return "FRONT", polygon, None
         elif len(back_verts) >= 3:
-            return "BACK", None, polygon_coords
+            return "BACK", None, polygon
         else:
             return "NONE", None, None
