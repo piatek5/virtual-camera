@@ -24,7 +24,7 @@ class Polygon:
     """Polygon together with the plane it lies in.
 
     Attributes:
-        coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon vertice coordinates.
+        coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon vertex coordinates.
         plane (Plane): Plane the polygon lies in. Split fragments keep their
             parent's plane, as cutting a flat polygon does not change its plane.
     """
@@ -73,10 +73,10 @@ class BSP_tree:
     def get_plane(polygon_coords: np.ndarray) -> Plane:
         """Implementation of Newell's algorithm. Calculates the plane a polygon
         lies in: unit normal vector and plane offset. The normal direction
-        follows the vertice order (counter-clockwise when viewed from the front).
+        follows the vertex order (counter-clockwise when viewed from the front).
 
         Args:
-            polygon_coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon vertice coordinates.
+            polygon_coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon vertex coordinates.
 
         Raises:
             ValueError: If number of polygon vertices is <= 2.
@@ -119,8 +119,8 @@ class BSP_tree:
         self.root.
 
         Args:
-            coords (np.ndarray): np.ndarray of shape (V, 3) containing all vertice coordinates.
-            polygons (list[list[int]]): List of polygons described using vertice indexes.
+            coords (np.ndarray): np.ndarray of shape (V, 3) containing all vertex coordinates.
+            polygons (list[list[int]]): List of polygons described using vertex indexes.
 
         Returns:
             Node | None: BSP tree root node or None if no valid polygons were given.
@@ -138,8 +138,8 @@ class BSP_tree:
         and filters out damaged/incorrect polygons (those get_plane rejects).
 
         Args:
-            coords (np.ndarray): np.ndarray of shape (V, 3) containing all vertice coordinates.
-            polygons (list[list[int]]): List of polygons described using vertice indexes.
+            coords (np.ndarray): np.ndarray of shape (V, 3) containing all vertex coordinates.
+            polygons (list[list[int]]): List of polygons described using vertex indexes.
 
         Returns:
             list[Polygon]: Valid polygons with their coordinates and planes.
@@ -256,15 +256,22 @@ class BSP_tree:
                 - Number of polygons the plane would split
         """
         front, back, splits = 0, 0, 0
+        ref_plane = ref_polygon.plane
         for curr_polygon in polygon_list:
             if curr_polygon is ref_polygon:
                 continue
-            ref_plane = ref_polygon.plane
+
             dist = curr_polygon.coords @ ref_plane.n + ref_plane.d
-            f, b = np.any(dist > EPSILON), np.any(dist < -EPSILON)
-            if f and b: splits += 1
-            elif f: front += 1
-            elif b: back += 1
+            d_min, d_max = dist.min(), dist.max()
+
+            label = self._classify_by_extent(d_min, d_max)
+            if label == "SPANNING":
+                splits += 1
+            elif label == "FRONT":
+                front += 1
+            elif label == "BACK":
+                back += 1
+                
         return front, back, splits
 
     def _split_polygon(self, polygon: Polygon, plane: Plane
@@ -274,8 +281,7 @@ class BSP_tree:
         closer than EPSILON to the plane are treated as lying on it. A polygon
         that crosses the plane by less than SLIVER_EPS on one side is not split,
         but sent whole to the other side (or, if both sides are below
-        SLIVER_EPS, to the side it reaches further into). Does not return
-        two-vertice shapes.
+        SLIVER_EPS, to the side it reaches further into). Ignores degenerate polygons.
 
         Args:
             polygon (Polygon): Polygon to classify and possibly split.
@@ -292,34 +298,21 @@ class BSP_tree:
         num_verts = polygon.coords.shape[0]
 
         # Calculate distances from plane in advance.
-        # Apply normal vector and add distance from origin d to every vertice.
+        # Apply normal vector and add distance from origin d to every vertex.
         distances = polygon.coords @ n + d
 
         d_min, d_max = distances.min(), distances.max()
 
-        # A polygon that truly crosses the plane (vertices beyond EPSILON on 
-        # both Sides) is split only if it reaches at least SLIVER_EPS past the 
-        # plane on both sides. A smaller crossing is modelling noise: 
-        # splitting would only produce an invisible sliver, so the whole 
-        # polygon goes to one side.
-        if d_max > EPSILON and d_min < -EPSILON: 
-            front_tiny = d_max < SLIVER_EPS
-            back_tiny = d_min > -SLIVER_EPS
-        
-            if front_tiny and back_tiny:
-                if d_max >= -d_min:
-                    return "FRONT", polygon, None
-                return "BACK", None, polygon
-            if front_tiny:
-                # Only a sliver in front
-                return "BACK", None, polygon
-            if back_tiny:
-                # Only a sliver behind
-                return "FRONT", polygon, None
+        label = self._classify_by_extent(d_min, d_max)
+        if label == "COPLANAR":
+            return "COPLANAR", polygon, polygon
+        if label == "FRONT":
+            return "FRONT", polygon, None
+        if label == "BACK":
+            return "BACK", None, polygon
 
         front_verts = []
         back_verts = []
-        coplanar_count = 0
 
         for i in range(num_verts):
             v_a = polygon.coords[i]
@@ -327,9 +320,10 @@ class BSP_tree:
             d_a = distances[i]
             d_b = distances[(i + 1) % num_verts]
 
-            # Check whether current vertice is in front, at the back or is 
+            # Check whether current vertex is in front, behind or is 
             # coplanar. Compare the distance to a minimum tolerance. Any point 
-            # closer than EPSILON is considered to be coplanar.
+            # closer than EPSILON is considered to be coplanar and is added
+            # to both.
             if d_a > EPSILON:
                 front_verts.append(v_a)
             elif d_a < -EPSILON:
@@ -337,11 +331,11 @@ class BSP_tree:
             else:
                 front_verts.append(v_a)
                 back_verts.append(v_a)
-                coplanar_count += 1
 
-            # Check whether points lie on opposite sites of plane. True if both 
+            # Check whether points lie on opposite sides of plane. True if both 
             # distances from plane have different signs. If they are smaller
-            # than EPISLON then they do not lie on any side (coplanar case).
+            # than EPSILON then they do not lie on any side (coplanar case
+            # handled earlier).
             if (d_a > EPSILON and d_b < -EPSILON) or (
                 d_a < -EPSILON and d_b > EPSILON
             ):
@@ -350,15 +344,64 @@ class BSP_tree:
                 front_verts.append(intersection)
                 back_verts.append(intersection)
 
-        if coplanar_count >= 3 and coplanar_count == num_verts:
-            return "COPLANAR", polygon, polygon
-        elif len(front_verts) >= 3 and len(back_verts) >= 3:
+        if len(front_verts) >= 3 and len(back_verts) >= 3:
             return ("SPANNING",
                 Polygon(np.array(front_verts), polygon.plane),
                 Polygon(np.array(back_verts), polygon.plane))
-        elif len(front_verts) >= 3:
-            return "FRONT", polygon, None
-        elif len(back_verts) >= 3:
-            return "BACK", None, polygon
         else:
             return "NONE", None, None
+
+    @staticmethod
+    def _classify_by_extent(d_min: float, d_max: float) -> str:
+        """Decides from the extreme vertex distances alone whether a polygon
+        has to be split by a plane. Vertices closer than EPSILON are treated
+        as lying on the plane, so a polygon is never split unless it has
+        vertices beyond EPSILON on both sides. Even then it is split only if
+        it reaches at least SLIVER_EPS past the plane on both sides. A smaller
+        crossing is considered modelling noise: splitting would only produce 
+        an almost invisible sliver, so the whole polygon goes to one side.
+
+        Args:
+            d_min (float): Smallest signed vertex distance to the plane.
+            d_max (float): Largest signed vertex distance to the plane.
+
+        Returns:
+            str: "COPLANAR", "FRONT", "BACK" or "SPANNING" (a real split is needed).
+        """
+        # Checking the positions of extremes (and by extension all other negative 
+        # or positive distances) in relation to EPSILON. If all are within EPS 
+        # a polygon is considered coplanar. If not all are and if no distance 
+        # makes it past negative EPS, then a polygon is in front. The opposite
+        # goes for positive distances. 
+        # This fixes splitting off anything that from one or both sides 
+        # is confined within EPS.
+        if d_max <= EPSILON and d_min >= -EPSILON:
+            return "COPLANAR"
+        if d_min >= -EPSILON:
+            return "FRONT"
+        if d_max <= EPSILON:
+            return "BACK"
+
+        # If no condition is met then we have a polygon that exceeds EPS
+        # in both direction (can be considered ready for splitting). However
+        # we check whether any eligible vertex is above |SLIVER_EPS|. It is
+        # used to discard a side that could be split off but still is a short 
+        # distance from a plane. We simply lose the "lesser" side if it is 
+        # small enough not to create a very thin split off polygon.
+        front_tiny = d_max < SLIVER_EPS
+        back_tiny = d_min > -SLIVER_EPS
+
+        if front_tiny and back_tiny:
+            # Both sides are slivers but are not coplanar. 
+            # We pick the thicker one.
+            if d_max >= -d_min:
+                return "FRONT"
+            return "BACK"
+        if front_tiny:
+            # Only a sliver in front
+            return "BACK"
+        if back_tiny:
+            # Only a sliver behind
+            return "FRONT"
+
+        return "SPANNING"

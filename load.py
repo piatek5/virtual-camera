@@ -32,6 +32,6 @@ def load_obj(filename: Path) -> tuple[np.ndarray, list[list[int]]]:
                 face_indices = [int(p.split('/')[0]) - 1 for p in parts[1:]]
                 polygons.append(face_indices)
 
-    coords_matrix = np.array(coords, dtype=np.float32)
+    coords_matrix = np.array(coords, dtype=np.float64)
 
     return coords_matrix, polygons
