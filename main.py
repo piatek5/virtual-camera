@@ -19,8 +19,8 @@ FILE = 'cube.obj'
 def main():
     """Run the PyGame render loop for the virtual camera viewer."""
     # Starting camera cords
-    starting_pos: np.ndarray = np.array([0, 0, -5])
-    starting_rot: np.ndarray = np.array([0, 0, 0])
+    starting_pos: np.ndarray = np.array([0.0, 0.0, -5.0])
+    starting_rot: np.ndarray = np.array([0.0, 0.0, 0.0])
     starting_fov = 90.0
     camera = Camera(starting_pos, starting_rot)
     
@@ -61,8 +61,8 @@ def main():
                     print(f"Saved: {filename}")
                 # Reset position, rotaion and FOV with R
                 if event.key == pygame.K_r:
-                    camera.pos = starting_pos
-                    camera.rot = starting_rot
+                    camera.pos = starting_pos.copy()
+                    camera.rot = starting_rot.copy()
                     camera.fov = starting_fov
                 # Exit with ESC
                 if event.key == pygame.K_ESCAPE:
