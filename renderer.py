@@ -54,44 +54,49 @@ class Renderer:
         # column is skipped. Addition is for the last row and implicitly
         # multiplied by a fourth dim (w) value equal to 1.0.
         coords_view = polygon_coords @ view_matrix.T[:3,:3] + view_matrix.T[3, :3]
-
-        clipped_coords_view = []
-        verts_num = polygon_coords.shape[0]
         z_near = self.Z_NEAR
-        # Go through every vertice pair of a polygon to check 
-        # if some edges need to be clipped
-        for i in range(verts_num):
-            a_view = coords_view[i]
-            b_idx = (i + 1) % verts_num
-            b_view = coords_view[b_idx]
-            a_infront = a_view[2] >= 0.1
-            b_infront = b_view[2] >= 0.1
-            if a_infront or b_infront:
-                if not (a_infront and b_infront):
-                    # Calculate the intersection point 
-                    # of current edge and near plane (clipping point)
-                    u = a_view - b_view 
-                    t = (z_near - b_view[2]) / u[2]
-                    y = b_view[1] + t * u[1]
-                    x = b_view[0] + t * u[0]
 
-                    # Keep current vertice if it is viisble
-                    if a_infront:
+        if np.all(coords_view[:, 2] < z_near):
+            return
+        
+        if np.any(coords_view[:, 2] < z_near):
+            clipped_coords_view = []
+            verts_num = polygon_coords.shape[0]
+            # Go through every vertice pair of a polygon to check 
+            # if some edges need to be clipped
+            for i in range(verts_num):
+                a_view = coords_view[i]
+                b_idx = (i + 1) % verts_num
+                b_view = coords_view[b_idx]
+                a_infront = a_view[2] >= 0.1
+                b_infront = b_view[2] >= 0.1
+                if a_infront or b_infront:
+                    if not (a_infront and b_infront):
+                        # Calculate the intersection point 
+                        # of current edge and near plane (clipping point)
+                        u = a_view - b_view 
+                        t = (z_near - b_view[2]) / u[2]
+                        x = b_view[0] + t * u[0]
+                        y = b_view[1] + t * u[1]     
+
+                        # Keep current vertice if it is viisble
+                        if a_infront:
+                            clipped_coords_view.append(a_view)
+
+                        clipped_coords_view.append(np.array((x, y, z_near)))
+
+                    else:
                         clipped_coords_view.append(a_view)
 
-                    clipped_coords_view.append(np.array((x, y, z_near)))
-
-                else:
-                    clipped_coords_view.append(a_view)
+            coords_view = np.array(clipped_coords_view)
 
         # Minimum for a polygon
-        clipped_coords_view = np.array(clipped_coords_view)
-        if clipped_coords_view.shape[0] >= 3:
+        if coords_view.shape[0] >= 3:
             # Apply projection and normalization to every view vertice.
             # Fourth dimension for coordinates will be needed and so all
             # columns of projection matrix are used to produce (V, 4). The last
             # column od projection matrix is zeros so can be skipped.
-            projected = clipped_coords_view @ proj_matrix.T[:3, :]
+            projected = coords_view @ proj_matrix.T[:3, :]
             screen_coords = self.norm_scale(projected)
 
             pygame.draw.polygon(self.screen, color, screen_coords.tolist())        
