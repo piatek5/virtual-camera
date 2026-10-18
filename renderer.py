@@ -47,9 +47,13 @@ class Renderer:
         view_matrix: np.ndarray,
         proj_matrix: np.ndarray
     ):
-        # Calculate view vertices ahead of time
-        polygon_coords_4d = np.pad(polygon_coords, ((0, 0), (0, 1)), constant_values=1.0)
-        coords_view = polygon_coords_4d @ view_matrix.T
+        # Calculate view vertices ahead of time.
+        # The view matrix is (4, 4) but coordinates are (V, 3). To skip adding 
+        # a fourth dimension, we only do matrix calculations for the first 3 
+        # rows. To keep coords (V, 3) and not make them (V, 4) the fourth 
+        # column is skipped. Addition is for the last row and implicitly
+        # multiplied by a fourth dim (w) value equal to 1.0.
+        coords_view = polygon_coords @ view_matrix.T[:3,:3] + view_matrix.T[3, :3]
 
         clipped_coords_view = []
         verts_num = polygon_coords.shape[0]
@@ -75,7 +79,7 @@ class Renderer:
                     if a_infront:
                         clipped_coords_view.append(a_view)
 
-                    clipped_coords_view.append(np.array((x, y, z_near, 1.0)))
+                    clipped_coords_view.append(np.array((x, y, z_near)))
 
                 else:
                     clipped_coords_view.append(a_view)
@@ -83,9 +87,11 @@ class Renderer:
         # Minimum for a polygon
         clipped_coords_view = np.array(clipped_coords_view)
         if clipped_coords_view.shape[0] >= 3:
-            # Apply the projection matrix and normalization 
-            # to every (clipped) view vertice
-            projected = clipped_coords_view @ proj_matrix.T 
+            # Apply projection and normalization to every view vertice.
+            # Fourth dimension for coordinates will be needed and so all
+            # columns of projection matrix are used to produce (V, 4). The last
+            # column od projection matrix is zeros so can be skipped.
+            projected = clipped_coords_view @ proj_matrix.T[:3, :]
             screen_coords = self.norm_scale(projected)
 
             pygame.draw.polygon(self.screen, color, screen_coords.tolist())        
