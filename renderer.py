@@ -68,8 +68,8 @@ class Renderer:
                 a_view = coords_view[i]
                 b_idx = (i + 1) % verts_num
                 b_view = coords_view[b_idx]
-                a_infront = a_view[2] >= 0.1
-                b_infront = b_view[2] >= 0.1
+                a_infront = a_view[2] >= z_near
+                b_infront = b_view[2] >= z_near
                 if a_infront or b_infront:
                     if not (a_infront and b_infront):
                         # Calculate the intersection point 
