@@ -29,6 +29,7 @@ class Polygon:
             parent's plane, as cutting a flat polygon does not change its plane.
     """
     coords: np.ndarray
+    indexes: list[int]
     plane: Plane
 
 
@@ -40,6 +41,7 @@ class Node:
         self.front: Node | None = None
         self.back: Node | None = None
         self._polygon_coords_list: list[np.ndarray] = [] # All coplanar polygons
+        self._polygon_indexes_list: list[list[int]] = []
         self.plane: Plane = plane
         self.color: tuple[int, ...] = (
             random.randint(0, 255), 
@@ -52,6 +54,12 @@ class Node:
 
     def get_polygon_coords(self):
         return self._polygon_coords_list
+
+    def add_polygon_indexes(self, polygon_indexes: list[int]):
+            self._polygon_indexes_list.append(polygon_indexes)
+    
+    def get_polygon_indexes(self):
+        return self._polygon_indexes_list
     
 
 class BSP_tree:
@@ -66,6 +74,8 @@ class BSP_tree:
     """
     def __init__(self) -> None:
         self.root: Node | None = None
+        self._coords_build: list[np.ndarray] = []
+        self.coords: np.ndarray
         self.lam = 0.25
         self.plane_check_num = 10
 
@@ -126,10 +136,13 @@ class BSP_tree:
             Node | None: BSP tree root node or None if no valid polygons were given.
         """
         # Combine and filter polygon input.
-        polygon_coords_list = self._transform_input(coords, polygons)
+        polygon_list = self._transform_input(coords, polygons)
 
-        self.root = self._build_from_coords(polygon_coords_list)
+        self._coords_build = list(coords)
+        self.root = self._build_tree(polygon_list)
 
+        self.coords = np.array(self._coords_build)
+        
         return self.root
 
     def _transform_input(self, coords: np.ndarray, polygons: list[list[int]]
@@ -144,7 +157,7 @@ class BSP_tree:
         Returns:
             list[Polygon]: Valid polygons with their coordinates and planes.
         """
-        polygon_coords_list = []
+        polygon_list = []
         for polygon_indexed in polygons:
             polygon_coords = coords[polygon_indexed]
             try:
@@ -156,12 +169,12 @@ class BSP_tree:
                 err.__cause__ = e
                 continue
 
-            polygon_obj = Polygon(polygon_coords, plane)
-            polygon_coords_list.append(polygon_obj)
+            polygon_obj = Polygon(polygon_coords, polygon_indexed, plane)
+            polygon_list.append(polygon_obj)
 
-        return polygon_coords_list
+        return polygon_list
 
-    def _build_from_coords(self, polygon_list: list[Polygon]) -> Node | None:
+    def _build_tree(self, polygon_list: list[Polygon]) -> Node | None:
         """Recursively builds a BSP subtree. Picks a splitting polygon, stores
         it with all polygons coplanar to it in a new node and distributes the
         rest (splitting them when needed) into front and back subtrees.
@@ -182,6 +195,7 @@ class BSP_tree:
             
         node = Node(root_polygon.plane)
         node.add_polygon_coords(root_polygon.coords)
+        node.add_polygon_indexes(root_polygon.indexes)
 
         front_list = []
         back_list = []
@@ -205,9 +219,10 @@ class BSP_tree:
                 back_list.append(poly_back)
             elif classification == "COPLANAR":
                 node.add_polygon_coords(polygon.coords)
+                node.add_polygon_indexes(polygon.indexes)
 
-        node.front = self._build_from_coords(front_list)
-        node.back = self._build_from_coords(back_list)
+        node.front = self._build_tree(front_list)
+        node.back = self._build_tree(back_list)
         return node
 
     def _pick_best_polygon(self, polygon_list: list[Polygon]
@@ -311,8 +326,11 @@ class BSP_tree:
         if label == "BACK":
             return "BACK", None, polygon
 
-        front_verts = []
-        back_verts = []
+        front_vert_coords = []
+        back_vert_coords = []
+
+        front_vert_idxs = []
+        back_vert_idxs =  []
 
         for i in range(num_verts):
             v_a = polygon.coords[i]
@@ -320,17 +338,24 @@ class BSP_tree:
             d_a = distances[i]
             d_b = distances[(i + 1) % num_verts]
 
+            vert_idx = polygon.indexes[i]
+
             # Check whether current vertex is in front, behind or is 
             # coplanar. Compare the distance to a minimum tolerance. Any point 
             # closer than EPSILON is considered to be coplanar and is added
             # to both.
             if d_a > EPSILON:
-                front_verts.append(v_a)
+                front_vert_coords.append(v_a)
+                front_vert_idxs.append(vert_idx)
             elif d_a < -EPSILON:
-                back_verts.append(v_a)
+                back_vert_coords.append(v_a)
+                back_vert_idxs.append(vert_idx)
             else:
-                front_verts.append(v_a)
-                back_verts.append(v_a)
+                front_vert_coords.append(v_a)
+                back_vert_coords.append(v_a)
+
+                front_vert_idxs.append(vert_idx)
+                back_vert_idxs.append(vert_idx)
 
             # Check whether points lie on opposite sides of plane. True if both 
             # distances from plane have different signs. If they are smaller
@@ -341,13 +366,19 @@ class BSP_tree:
             ):
                 t = d_a / (d_a - d_b)
                 intersection = (1.0 - t) * v_a + t * v_b
-                front_verts.append(intersection)
-                back_verts.append(intersection)
+                front_vert_coords.append(intersection)
+                back_vert_coords.append(intersection)
 
-        if len(front_verts) >= 3 and len(back_verts) >= 3:
+                self._coords_build.append(intersection)
+                last_coord_idx = len(self._coords_build) - 1
+
+                front_vert_idxs.append(last_coord_idx)
+                back_vert_idxs.append(last_coord_idx)
+
+        if len(front_vert_coords) >= 3 and len(back_vert_coords) >= 3:
             return ("SPANNING",
-                Polygon(np.array(front_verts), polygon.plane),
-                Polygon(np.array(back_verts), polygon.plane))
+                Polygon(np.array(front_vert_coords), front_vert_idxs, polygon.plane),
+                Polygon(np.array(back_vert_coords), back_vert_idxs, polygon.plane))
         else:
             return "NONE", None, None
 

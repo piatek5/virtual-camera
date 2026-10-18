@@ -12,62 +12,84 @@ class Renderer:
         self.width = camera.WIDTH
         self.height = camera.HEIGHT
         self.screen = screen
-        self.bsp_tree = BSP_tree().build(coords, polygons)
+        self.bsp_tree = BSP_tree()
+        self.bsp_tree.build(coords, polygons)
 
     def render(self):
         model_matrix = self.camera.get_model_matrix()
         view_matrix = np.linalg.inv(model_matrix)
         proj_matrix = self.camera.get_projection_matrix()
-        self._parse_tree(self.bsp_tree, view_matrix, proj_matrix)
+
+        # Calculate view vertices ahead of time.
+        # The view matrix is (4, 4) but coordinates are (V, 3). To skip adding 
+        # a fourth dimension, we only do matrix calculations for the first 3 
+        # rows. To keep coords (V, 3) and not make them (V, 4) the fourth
+        # column is skipped. Addition is for the last row and implicitly
+        # multiplied by a fourth dim (w) value equal to 1.0.
+        view_coords = self.bsp_tree.coords @ view_matrix.T[:3,:3] + view_matrix.T[3, :3]
+
+        # Apply projection and normalization to every view vertice.
+        # Fourth dimension for coordinates will be needed and so all columns
+        # of projection matrix are used to produce (V, 4). The last row of 
+        # projection matrix is zeros so can be skipped.
+        proj_coords = view_coords @ proj_matrix.T[:3, :]
+        screan_coords = self.norm_scale(proj_coords)
+
+        in_front = view_coords[:, 2] >= self.Z_NEAR
+
+        self._parse_tree(self.bsp_tree.root, view_coords, proj_matrix, screan_coords, in_front)
 
     def _parse_tree(
         self,
         node: Node | None,
-        view_matrix: np.ndarray,
+        view_coords: np.ndarray,
         proj_matrix: np.ndarray,
+        screan_coords: np.ndarray,
+        in_front: np.ndarray
     ):
         if node is None:
             return
         n, d = node.plane.n, node.plane.d
         # If camera is positioned in front of current plane (polygon)
         if (np.dot(n, self.camera.pos) + d) > 0:
-            self._parse_tree(node.back, view_matrix, proj_matrix)
-            for polygon_coords in node.get_polygon_coords():
-                self._draw(polygon_coords, node.color, view_matrix, proj_matrix)
-            self._parse_tree(node.front, view_matrix, proj_matrix)
+            self._parse_tree(node.back, view_coords, proj_matrix, screan_coords, in_front)
+            for polygon_indexes in node.get_polygon_indexes():
+                self._draw(polygon_indexes, node.color, view_coords, proj_matrix, screan_coords, in_front)
+            self._parse_tree(node.front, view_coords, proj_matrix, screan_coords, in_front)
         else:
-            self._parse_tree(node.front, view_matrix, proj_matrix)
-            for polygon_coords in node.get_polygon_coords():
-                self._draw(polygon_coords, node.color, view_matrix, proj_matrix)
-            self._parse_tree(node.back, view_matrix, proj_matrix)
+            self._parse_tree(node.front, view_coords, proj_matrix, screan_coords, in_front)
+            for polygon_indexes in node.get_polygon_indexes():
+                self._draw(polygon_indexes, node.color, view_coords, proj_matrix, screan_coords, in_front)
+            self._parse_tree(node.back, view_coords, proj_matrix, screan_coords, in_front)
 
     def _draw(self, 
-        polygon_coords: np.ndarray, 
+        polygon_indexes: list[int], 
         color: tuple[int, ...],
-        view_matrix: np.ndarray,
-        proj_matrix: np.ndarray
+        view_coords: np.ndarray,
+        proj_matrix: np.ndarray,
+        screan_coords: np.ndarray,
+        in_front: np.ndarray
     ):
-        # Calculate view vertices ahead of time.
-        # The view matrix is (4, 4) but coordinates are (V, 3). To skip adding 
-        # a fourth dimension, we only do matrix calculations for the first 3 
-        # rows. To keep coords (V, 3) and not make them (V, 4) the fourth 
-        # column is skipped. Addition is for the last row and implicitly
-        # multiplied by a fourth dim (w) value equal to 1.0.
-        coords_view = polygon_coords @ view_matrix.T[:3,:3] + view_matrix.T[3, :3]
-        z_near = self.Z_NEAR
+        polygon_in_front = in_front[polygon_indexes]
 
-        if np.all(coords_view[:, 2] < z_near):
+        if not polygon_in_front.any():
             return
         
-        if np.any(coords_view[:, 2] < z_near):
-            clipped_coords_view = []
-            verts_num = polygon_coords.shape[0]
+        elif polygon_in_front.all():
+            curr_screan_coords = [screan_coords[idx] for idx in polygon_indexes]
+            pygame.draw.polygon(self.screen, color, curr_screan_coords) 
+            return
+        
+        else:
+            z_near = self.Z_NEAR
+            curr_view_coords = []
+            verts_num = len(polygon_indexes)
             # Go through every vertice pair of a polygon to check 
             # if some edges need to be clipped
             for i in range(verts_num):
-                a_view = coords_view[i]
+                a_view = view_coords[polygon_indexes[i]]
                 b_idx = (i + 1) % verts_num
-                b_view = coords_view[b_idx]
+                b_view = view_coords[polygon_indexes[b_idx]]
                 a_infront = a_view[2] >= z_near
                 b_infront = b_view[2] >= z_near
                 if a_infront or b_infront:
@@ -81,25 +103,23 @@ class Renderer:
 
                         # Keep current vertice if it is viisble
                         if a_infront:
-                            clipped_coords_view.append(a_view)
+                            curr_view_coords.append(a_view)
 
-                        clipped_coords_view.append(np.array((x, y, z_near)))
+                        curr_view_coords.append(np.array((x, y, z_near)))
 
                     else:
-                        clipped_coords_view.append(a_view)
+                        curr_view_coords.append(a_view)
 
-            coords_view = np.array(clipped_coords_view)
+            curr_view_coords = np.array(curr_view_coords)
 
-        # Minimum for a polygon
-        if coords_view.shape[0] >= 3:
-            # Apply projection and normalization to every view vertice.
-            # Fourth dimension for coordinates will be needed and so all
-            # columns of projection matrix are used to produce (V, 4). The last
-            # column od projection matrix is zeros so can be skipped.
-            projected = coords_view @ proj_matrix.T[:3, :]
-            screen_coords = self.norm_scale(projected)
+            # Minimum for a polygon
+            if curr_view_coords.shape[0] >= 3:
+                # Apply projection and normalization to every view vertice. Picking
+                # certain rows for proj_matrix explained before.
+                projected = curr_view_coords @ proj_matrix.T[:3, :]
+                screen_coords = self.norm_scale(projected)
 
-            pygame.draw.polygon(self.screen, color, screen_coords.tolist())        
+                pygame.draw.polygon(self.screen, color, screen_coords.tolist())        
 
     def norm_scale(self, coords: np.ndarray) -> np.ndarray:
         x = coords[:, 0]
