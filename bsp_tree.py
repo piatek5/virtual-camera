@@ -24,11 +24,14 @@ class Polygon:
     """Polygon together with the plane it lies in.
 
     Attributes:
-        coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon vertex coordinates.
-        plane (Plane): Plane the polygon lies in. Split fragments keep their
-            parent's plane, as cutting a flat polygon does not change its plane.
+        coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon
+            vertex coordinates.
+        indexes (list[int]): List of indexed vertice coordinate. Indexes point 
+            to the coords np.ndarray.
+        plane (Plane): Plane the polygon lies in.
     """
     coords: np.ndarray
+    indexes: list[int]
     plane: Plane
 
 
@@ -39,19 +42,26 @@ class Node:
     def __init__(self, plane) -> None:
         self.front: Node | None = None
         self.back: Node | None = None
-        self._polygon_coords_list: list[np.ndarray] = [] # All coplanar polygons
+        self._polygon_coords_list: list[np.ndarray] = []
+        self._polygon_indexes_list: list[list[int]] = []
         self.plane: Plane = plane
         self.color: tuple[int, ...] = (
             random.randint(0, 255), 
             random.randint(0, 255), 
             random.randint(0, 255)
-        ) # TODO: Temporary showcase measure
+        ) # TODO: Change/delete (temporary showcase measure)
 
     def add_polygon_coords(self, polygon_coords: np.ndarray):
         self._polygon_coords_list.append(polygon_coords)
 
     def get_polygon_coords(self):
         return self._polygon_coords_list
+
+    def add_polygon_indexes(self, polygon_indexes: list[int]):
+            self._polygon_indexes_list.append(polygon_indexes)
+    
+    def get_polygon_indexes(self):
+        return self._polygon_indexes_list
     
 
 class BSP_tree:
@@ -66,6 +76,8 @@ class BSP_tree:
     """
     def __init__(self) -> None:
         self.root: Node | None = None
+        self._coords_build: list[np.ndarray] = []
+        self.coords: np.ndarray
         self.lam = 0.25
         self.plane_check_num = 10
 
@@ -76,7 +88,8 @@ class BSP_tree:
         follows the vertex order (counter-clockwise when viewed from the front).
 
         Args:
-            polygon_coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon vertex coordinates.
+            polygon_coords (np.ndarray): np.ndarray of shape (V, 3) containing
+                polygon vertex coordinates.
 
         Raises:
             ValueError: If number of polygon vertices is <= 2.
@@ -108,9 +121,12 @@ class BSP_tree:
 
         if norm < EPSILON:
             raise ValueError("Polygon vertices are colinear!")
+
+        # Unit normal vector
+        n = n_raw / norm 
+        # Distance from origin
+        d = -np.dot(n, p_0) 
         
-        n = n_raw / norm # Unit normal vector
-        d = -np.dot(n, p_0) # Distance from origin
         return Plane(n, d)
 
     def build(self, coords: np.ndarray, polygons: list[list[int]]) -> Node | None:
@@ -126,16 +142,19 @@ class BSP_tree:
             Node | None: BSP tree root node or None if no valid polygons were given.
         """
         # Combine and filter polygon input.
-        polygon_coords_list = self._transform_input(coords, polygons)
+        polygon_list = self._transform_input(coords, polygons)
 
-        self.root = self._build_from_coords(polygon_coords_list)
+        self._coords_build = list(coords)
+        self.root = self._build_tree(polygon_list)
 
+        self.coords = np.array(self._coords_build)
+        
         return self.root
 
     def _transform_input(self, coords: np.ndarray, polygons: list[list[int]]
     ) -> list[Polygon]:
         """Combines input polygon description into a list of Polygon objects
-        and filters out damaged/incorrect polygons (those get_plane rejects).
+        and filters out damaged/incorrect polygons.
 
         Args:
             coords (np.ndarray): np.ndarray of shape (V, 3) containing all vertex coordinates.
@@ -144,7 +163,7 @@ class BSP_tree:
         Returns:
             list[Polygon]: Valid polygons with their coordinates and planes.
         """
-        polygon_coords_list = []
+        polygon_list = []
         for polygon_indexed in polygons:
             polygon_coords = coords[polygon_indexed]
             try:
@@ -154,14 +173,15 @@ class BSP_tree:
                     f"Error building a BSP node. Damaged polygon: {polygon_coords}. Skipping."
                 )
                 err.__cause__ = e
+                # TODO: write error to a logger.
                 continue
 
-            polygon_obj = Polygon(polygon_coords, plane)
-            polygon_coords_list.append(polygon_obj)
+            polygon_obj = Polygon(polygon_coords, polygon_indexed, plane)
+            polygon_list.append(polygon_obj)
 
-        return polygon_coords_list
+        return polygon_list
 
-    def _build_from_coords(self, polygon_list: list[Polygon]) -> Node | None:
+    def _build_tree(self, polygon_list: list[Polygon]) -> Node | None:
         """Recursively builds a BSP subtree. Picks a splitting polygon, stores
         it with all polygons coplanar to it in a new node and distributes the
         rest (splitting them when needed) into front and back subtrees.
@@ -182,6 +202,7 @@ class BSP_tree:
             
         node = Node(root_polygon.plane)
         node.add_polygon_coords(root_polygon.coords)
+        node.add_polygon_indexes(root_polygon.indexes)
 
         front_list = []
         back_list = []
@@ -205,9 +226,10 @@ class BSP_tree:
                 back_list.append(poly_back)
             elif classification == "COPLANAR":
                 node.add_polygon_coords(polygon.coords)
+                node.add_polygon_indexes(polygon.indexes)
 
-        node.front = self._build_from_coords(front_list)
-        node.back = self._build_from_coords(back_list)
+        node.front = self._build_tree(front_list)
+        node.back = self._build_tree(back_list)
         return node
 
     def _pick_best_polygon(self, polygon_list: list[Polygon]
@@ -229,7 +251,7 @@ class BSP_tree:
         random_polygons = random.sample(polygon_list, num_to_check)
 
         # Check some (as set in class attributes) random polygons and pick
-        # the best fit for representing a current root
+        # the best fit for representing a current root.
         for polygon in random_polygons:
             front, back, splits = self._classify_counts(polygon, polygon_list)
             cost = splits + self.lam * abs(front - back)
@@ -311,8 +333,11 @@ class BSP_tree:
         if label == "BACK":
             return "BACK", None, polygon
 
-        front_verts = []
-        back_verts = []
+        front_vert_coords = []
+        back_vert_coords = []
+
+        front_vert_idxs = []
+        back_vert_idxs =  []
 
         for i in range(num_verts):
             v_a = polygon.coords[i]
@@ -320,34 +345,49 @@ class BSP_tree:
             d_a = distances[i]
             d_b = distances[(i + 1) % num_verts]
 
+            vert_idx = polygon.indexes[i]
+
             # Check whether current vertex is in front, behind or is 
             # coplanar. Compare the distance to a minimum tolerance. Any point 
-            # closer than EPSILON is considered to be coplanar and is added
-            # to both.
+            # closer than EPSILON is considered to be coplanar.
             if d_a > EPSILON:
-                front_verts.append(v_a)
+                front_vert_coords.append(v_a)
+                front_vert_idxs.append(vert_idx)
             elif d_a < -EPSILON:
-                back_verts.append(v_a)
+                back_vert_coords.append(v_a)
+                back_vert_idxs.append(vert_idx)
             else:
-                front_verts.append(v_a)
-                back_verts.append(v_a)
+                # Point lies on the plane.
+                front_vert_coords.append(v_a)
+                back_vert_coords.append(v_a)
+
+                front_vert_idxs.append(vert_idx)
+                back_vert_idxs.append(vert_idx)
 
             # Check whether points lie on opposite sides of plane. True if both 
             # distances from plane have different signs. If they are smaller
             # than EPSILON then they do not lie on any side (coplanar case
-            # handled earlier).
+            # handled by _classify_by_extent).
             if (d_a > EPSILON and d_b < -EPSILON) or (
                 d_a < -EPSILON and d_b > EPSILON
             ):
                 t = d_a / (d_a - d_b)
                 intersection = (1.0 - t) * v_a + t * v_b
-                front_verts.append(intersection)
-                back_verts.append(intersection)
+                front_vert_coords.append(intersection)
+                back_vert_coords.append(intersection)
 
-        if len(front_verts) >= 3 and len(back_verts) >= 3:
+                self._coords_build.append(intersection)
+                last_coord_idx = len(self._coords_build) - 1
+
+                front_vert_idxs.append(last_coord_idx)
+                back_vert_idxs.append(last_coord_idx)
+
+        if len(front_vert_coords) >= 3 and len(back_vert_coords) >= 3:
             return ("SPANNING",
-                Polygon(np.array(front_verts), polygon.plane),
-                Polygon(np.array(back_verts), polygon.plane))
+                # Split fragments keep their parent's plane, as cutting a flat
+                # polygon does not change its plane.
+                Polygon(np.array(front_vert_coords), front_vert_idxs, polygon.plane),
+                Polygon(np.array(back_vert_coords), back_vert_idxs, polygon.plane))
         else:
             return "NONE", None, None
 
@@ -398,10 +438,10 @@ class BSP_tree:
                 return "FRONT"
             return "BACK"
         if front_tiny:
-            # Only a sliver in front
+            # Only a sliver in front.
             return "BACK"
         if back_tiny:
-            # Only a sliver behind
+            # Only a sliver behind.
             return "FRONT"
 
         return "SPANNING"
