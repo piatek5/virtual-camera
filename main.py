@@ -3,6 +3,7 @@
 from renderer import Renderer
 from camera import Camera
 from load import load_obj
+from hud import draw_hud
 
 import pygame
 import numpy as np
@@ -103,15 +104,7 @@ def main():
         # Render vertices and edges
         renderer.render()
 
-        rot_deg = (np.degrees(camera.rot) % 360)
-        # Positional and FOV information
-        pos_text = font.render(f"XYZ: {camera.pos[0]:.2f}, {camera.pos[1]:.2f}, {camera.pos[2]:.2f}", True, (255, 255, 255))
-        rot_text = font.render(f"ROT: {rot_deg[0]:.0f}°, {rot_deg[1]:.0f}°, {rot_deg[2]:.0f}°", True, (255, 255, 255))
-        fov_text = font.render(f"FOV: {camera.fov:.0f}°", True, (255, 255, 255))
-
-        screen.blit(pos_text, (10, 10))
-        screen.blit(rot_text, (10, 30))
-        screen.blit(fov_text, (10, 50))
+        draw_hud(screen, font, camera)
 
         pygame.display.flip()
 
