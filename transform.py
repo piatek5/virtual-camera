@@ -73,7 +73,7 @@ def get_world_matrix(pos: np.ndarray, rot: np.ndarray, scale: np.ndarray) -> np.
 
     r = get_rotation_matrix(rot)
     t = get_translation_matrix(pos)
-    s = get_rotation_matrix(scale)
+    s = get_scale_matrix(scale)
 
     return t @ r @ s
 
