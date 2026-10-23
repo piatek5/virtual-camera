@@ -58,19 +58,12 @@ def get_translation_matrix(pos: np.ndarray) -> np.ndarray:
 
     return t
 
-def get_model_matrix(pos: np.ndarray, rot: np.ndarray) -> np.ndarray:
-    """Compute the combined camera model matrix.
+def get_model_matrix(pos: np.ndarray, rot: np.ndarray, scale=(1.0, 1.0, 1.0)) -> np.ndarray:
+    """Compute the matrix placing an object (model or camera) in the world.
 
     Returns:
-        A 4x4 numpy array representing translation followed by rotation.
+        A 4x4 numpy array that scales, then rotates, then translates.
     """
-    r = get_rotation_matrix(rot)
-    t = get_translation_matrix(pos)
-
-    return t @ r
-
-def get_world_matrix(pos: np.ndarray, rot: np.ndarray, scale: np.ndarray) -> np.ndarray:
-
     r = get_rotation_matrix(rot)
     t = get_translation_matrix(pos)
     s = get_scale_matrix(scale)

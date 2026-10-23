@@ -6,6 +6,7 @@ FPS = 60
 
 MOVE_SPEED = 6.0    # units per second
 ROT_SPEED = 3.0     # radians per second
+ZOOM_SPEED = 60.0   # FOV degrees per second
 
 DEFAULT_OBJ = Path("solids/cube.obj")
 

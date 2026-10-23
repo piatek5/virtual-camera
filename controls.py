@@ -17,13 +17,15 @@ class InputHandler:
         screen: Surface,
         screenshots: Path,
         move_speed=config.MOVE_SPEED,
-        rot_speed=config.ROT_SPEED
+        rot_speed=config.ROT_SPEED,
+        zoom_speed=config.ZOOM_SPEED
     ) -> None:
         self.camera = camera
         self.screen = screen
         self.screenshots = screenshots
         self.move_speed = move_speed
         self.rot_speed = rot_speed
+        self.zoom_speed = zoom_speed
         
     def handle_event(self, event: Event):
         # Close the programm
@@ -37,11 +39,9 @@ class InputHandler:
         elif event.type == pygame.KEYDOWN:
             # Take a screenshot with F12
             if event.key == pygame.K_F12:
-                if self.screenshots is None:
-                    save_screenshot(self.screen)
-                else:
-                    save_screenshot(self.screen, self.screenshots)
-                    
+                path = save_screenshot(self.screen, self.screenshots)
+                print(f"Saved: {path}")
+
             # Reset position, rotaion and FOV with R
             if event.key == pygame.K_r:
                 self.camera.reset()
@@ -52,8 +52,9 @@ class InputHandler:
 
     def apply_held_keys(self, keys, dt):
         # Scale
-        if keys[pygame.K_EQUALS] or keys[pygame.K_KP_PLUS]: self.camera.fov -= 1.0 # Zoom
-        if keys[pygame.K_MINUS] or keys[pygame.K_KP_MINUS]: self.camera.fov += 1.0 # Unzoom
+        zoom_speed = self.zoom_speed * dt
+        if keys[pygame.K_EQUALS] or keys[pygame.K_KP_PLUS]: self.camera.fov -= zoom_speed # Zoom
+        if keys[pygame.K_MINUS] or keys[pygame.K_KP_MINUS]: self.camera.fov += zoom_speed # Unzoom
         self.camera.fov = max(10.0, min(170.0, self.camera.fov))
 
         # Rotation
