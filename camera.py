@@ -9,17 +9,19 @@ class Camera:
 
     """Represents a 3D camera with position and Euler rotation."""
 
-    def __init__(self, pos: np.ndarray, rot: np.ndarray):
-        """Initialize the camera position and rotation.
+    def __init__(self, pos: np.ndarray, rot: np.ndarray, fov=90.0):
+        """Initialize the camera position and rotation."""
 
-        Args:
-            pos: A 3-element list of the camera position in world space.
-            rot: A 3-element list of Euler angles (x, y, z) in radians.
-        """
-        self.pos = np.array(pos, dtype=float)
-        self.rot = np.array(rot, dtype=float)
-        self.fov = 90.0
+        self.start_pos = np.array(pos, dtype=float)
+        self.start_rot = np.array(rot, dtype=float)
+        self.start_fov = fov
+        self.reset()
 
+    def reset(self):
+        self.pos = self.start_pos.copy()
+        self.rot = self.start_rot.copy()
+        self.fov = self.start_fov
+        
     def get_rotation_matrix(self) -> np.ndarray:
         """Create the camera rotation matrix from Euler angles.
 
