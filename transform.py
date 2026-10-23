@@ -3,6 +3,17 @@ import numpy as np
 import math
 
 
+def get_scale_matrix(scale: np.ndarray) -> np.ndarray:
+
+    s = np.array([
+        [scale[0], 0, 0, 0],
+        [0, scale[1], 0, 0],
+        [0, 0, scale[2], 0],
+        [0, 0, 0, 1]
+    ])
+
+    return s
+
 def get_rotation_matrix(rot: np.ndarray) -> np.ndarray:
     """Create the camera rotation matrix from Euler angles.
 
@@ -57,6 +68,14 @@ def get_model_matrix(pos: np.ndarray, rot: np.ndarray) -> np.ndarray:
     t = get_translation_matrix(pos)
 
     return t @ r
+
+def get_world_matrix(pos: np.ndarray, rot: np.ndarray, scale: np.ndarray) -> np.ndarray:
+
+    r = get_rotation_matrix(rot)
+    t = get_translation_matrix(pos)
+    s = get_rotation_matrix(scale)
+
+    return t @ r @ s
 
 def get_projection_matrix(fov: float, aspect_ratio: float) -> np.ndarray:
     """Create a perspective projection matrix.
