@@ -1,3 +1,5 @@
+from model import Model
+
 from pathlib import Path
 
 import numpy as np
@@ -19,10 +21,10 @@ def load_scene(paths: list[Path]):
     offset = 0
 
     for path in paths:
-        coords, polygons = load_obj(path)
-        all_coords.append(coords)
+        model = load_obj(path)
+        all_coords.append(model.get_world_coords())
 
-        for polygon in polygons:
+        for polygon in model.polygons:
             polygon_shifted = []
 
             for poly_idx in polygon:
@@ -30,21 +32,18 @@ def load_scene(paths: list[Path]):
 
             all_polygons.append(polygon_shifted)
 
-        offset += coords.shape[0]
+        offset += model.coords.shape[0]
 
     return np.vstack(all_coords), all_polygons
 
-def load_obj(filename: Path) -> tuple[np.ndarray, list[list[int]]]:
+def load_obj(filename: Path) -> Model:
     """Load vertex and edge data from a Wavefront OBJ file.
 
     Args:
         filename (Path): Path to OBJ file.
 
     Returns:
-        tuple(np.ndarray, list[list[int]]]):
-            - np.ndarray of shape (V, 3) containing all vertice coordinates.
-            - a list of all polygons each described as a list of integer indexes 
-            pointing to a position in the vertice list
+        Model object representing one OBJ model.
     """
     coords: list[tuple[float, float, float]] = []
     polygons: list[list[int]] = []
@@ -65,4 +64,4 @@ def load_obj(filename: Path) -> tuple[np.ndarray, list[list[int]]]:
 
     coords_matrix = np.array(coords, dtype=np.float64)
 
-    return coords_matrix, polygons
+    return Model(coords_matrix, polygons)
