@@ -43,7 +43,7 @@ def main():
     
     pygame.init()
 
-    screen = pygame.display.set_mode((camera.WIDTH, camera.HEIGHT))
+    screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
     font = pygame.font.SysFont('Arial', 18)
 
     pygame.display.set_caption("Virtual Camera")
@@ -62,7 +62,7 @@ def main():
     )
 
     while True:
-        dt = clock.tick(camera.FPS) / 1000.0
+        dt = clock.tick(config.FPS) / 1000.0
         screen.fill((20, 20, 20))
 
         # Handle pressed keys

@@ -1,3 +1,4 @@
+from transform import get_rotation_matrix
 from camera import Camera
 from utils import save_screenshot
 import config
@@ -77,6 +78,6 @@ class InputHandler:
         
         # Rotate and translate the small movement delta vector
         if np.any(move_delta[:3] != 0.0):
-            rotation_matrix = self.camera.get_rotation_matrix()
+            rotation_matrix = get_rotation_matrix(self.camera.rot)
             move_delta = rotation_matrix @ move_delta
             self.camera.pos = self.camera.pos + move_delta[:3]
