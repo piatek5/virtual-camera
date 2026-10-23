@@ -3,7 +3,7 @@
 from controls import InputHandler
 from renderer import Renderer
 from camera import Camera
-from load import load_obj
+from load import load_scene
 from hud import draw_hud
 import config
 
@@ -48,8 +48,7 @@ def main():
 
     pygame.display.set_caption("Virtual Camera")
 
-    file_path = args.paths[0]
-    coords, polygons = load_obj(file_path)
+    coords, polygons = load_scene(args.paths)
 
     renderer = Renderer(camera, screen, polygons, coords)
     clock = pygame.time.Clock()
