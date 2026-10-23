@@ -3,23 +3,38 @@
 from controls import InputHandler
 from renderer import Renderer
 from camera import Camera
-from load import load_obj
+from load import load_scene
 from hud import draw_hud
 import config
 
 import pygame
 import numpy as np
 
-
 from pathlib import Path
+import argparse
 
-# Solid location seletion
-FOLDER = 'solids'
-FILE = 'cube.obj'
 
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Virtual camera OBJ viewer')
+    parser.add_argument('paths', nargs='*', type=Path,
+                        default=[config.DEFAULT_OBJ],
+                        help='OBJ files to load (default: %(default)s)')
+    parser.add_argument('-s', '--screenshot-dir', type=Path,
+                        default=config.SCREENSHOT_DIR,
+                        help='Path to screenshot save directory (default: %(default)s)')
+    parser.add_argument('-m', '--move-speed', type=float,
+                        default=config.MOVE_SPEED,
+                        help='Move speed in units per second (default: %(default)s)')
+    parser.add_argument('-r', '--rot-speed', type=float,
+                        default=config.ROT_SPEED,
+                        help='Rotation speed in radians per second (default: %(default)s)')
+    
+    return parser.parse_args(argv)
 
 def main():
     """Run the PyGame render loop for the virtual camera viewer."""
+    args = parse_args()
+
     # Starting camera cords and fov
     starting_pos: np.ndarray = np.array([0.0, 0.0, -5.0])
     starting_rot: np.ndarray = np.array([0.0, 0.0, 0.0])
@@ -33,22 +48,17 @@ def main():
 
     pygame.display.set_caption("Virtual Camera")
 
-    folder = Path(FOLDER)
-    file_path = folder / FILE
-    coords, polygons = load_obj(file_path)
+    coords, polygons = load_scene(args.paths)
 
     renderer = Renderer(camera, screen, polygons, coords)
     clock = pygame.time.Clock()
 
-    move_speed = config.MOVE_SPEED
-    rot_speed = config.ROT_SPEED
-    screenshots = config.SCREENSHOT_DIR
     input_handler = InputHandler(
         camera=camera,
         screen=screen,
-        screenshots=screenshots,
-        move_speed=move_speed,
-        rot_speed=rot_speed
+        screenshots=args.screenshot_dir,
+        move_speed=args.move_speed,
+        rot_speed=args.rot_speed
     )
 
     while True:
