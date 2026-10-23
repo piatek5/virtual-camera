@@ -61,13 +61,15 @@ def main():
         rot_speed=args.rot_speed
     )
 
-    while True:
+    running = True
+    while running:
         dt = clock.tick(config.FPS) / 1000.0
         screen.fill((20, 20, 20))
 
         # Handle pressed keys
         for event in pygame.event.get():
-            input_handler.handle_event(event)
+            if not input_handler.handle_event(event):
+                running = False
 
         # Handle continuous key presses
         keys = pygame.key.get_pressed()
@@ -78,6 +80,8 @@ def main():
         draw_hud(screen, font, camera)
 
         pygame.display.flip()
+
+    pygame.quit()
 
 if __name__ == "__main__":
     main()

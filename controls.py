@@ -4,7 +4,6 @@ from utils import save_screenshot
 import config
 
 from pathlib import Path
-import sys
 
 import pygame
 import numpy as np
@@ -27,11 +26,11 @@ class InputHandler:
         self.rot_speed = rot_speed
         self.zoom_speed = zoom_speed
         
-    def handle_event(self, event: Event):
+    def handle_event(self, event: Event) -> bool:
+        """Handle a single event. Returns False when the user asked to quit."""
         # Close the programm
         if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+            return False
         # Zoom and unzoom wityh mouse scroll
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.fov -= event.y * 5
@@ -47,8 +46,9 @@ class InputHandler:
                 self.camera.reset()
             # Exit with ESC
             if event.key == pygame.K_ESCAPE:
-                pygame.quit()
-                sys.exit()
+                return False
+
+        return True
 
     def apply_held_keys(self, keys, dt):
         # Scale
