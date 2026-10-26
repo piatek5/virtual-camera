@@ -1,27 +1,16 @@
 from model import Model
 
 from pathlib import Path
+import tomllib
 
 import numpy as np
 
 
-def load_scene(paths: list[Path]):
-    """Load vertex and edge data from multiple Wavefront OBJ file.
-
-    Args:
-        paths (list[Path]): List of paths pointing to OBJ files.
-
-    Returns:
-        tuple(np.ndarray, list[list[int]]]):
-            - np.ndarray of shape (V, 3) containing all vertice coordinates.
-            - a list of all polygons each described as a list of integer indexes 
-            pointing to a position in the vertice list
-    """
+def merge_models(models: list[Model]):
     all_coords, all_polygons = [], []
     offset = 0
 
-    for path in paths:
-        model = load_obj(path)
+    for model in models:
         all_coords.append(model.get_world_coords())
 
         for polygon in model.polygons:
@@ -35,6 +24,40 @@ def load_scene(paths: list[Path]):
         offset += model.coords.shape[0]
 
     return np.vstack(all_coords), all_polygons
+
+def load_models(paths: list[Path]) -> list[Model]:
+    models = []
+    for path in paths:
+        if path.suffix == '.toml':
+            models += load_scene_file(path)
+        elif path.suffix == '.obj':
+            models.append(load_obj(path))
+        else:
+            print('Wrong file format!')
+            continue
+            #TODO: handle wrong format
+    
+    return models
+
+def load_scene_file(path: Path) -> list[Model]:
+    with open(path, "rb") as f: 
+        data = tomllib.load(f)
+
+    models = []
+    for i, entry in enumerate(data.get('model', []), start=1):
+        if 'file' not in entry:
+            print(f"{path}: model #{i} has no 'file'")
+            continue
+            #TODO: handle file error
+
+        model = load_obj(path.parent / entry["file"])
+        model.pos = entry.get('pos', model.pos)
+        model.rot = np.radians(entry.get('rot', model.rot))
+        model.scale = entry.get('scale', model.scale)
+
+        models.append(model)
+
+    return models
 
 def load_obj(filename: Path) -> Model:
     """Load vertex and edge data from a Wavefront OBJ file.

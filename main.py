@@ -3,7 +3,7 @@
 from controls import InputHandler
 from renderer import Renderer
 from camera import Camera
-from load import load_scene
+from load import load_models, merge_models
 from hud import draw_hud
 import config
 
@@ -15,10 +15,10 @@ import argparse
 
 
 def parse_args(argv=None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Virtual camera OBJ viewer')
+    parser = argparse.ArgumentParser(description='Virtual camera')
     parser.add_argument('paths', nargs='*', type=Path,
                         default=[config.DEFAULT_OBJ],
-                        help='OBJ files to load (default: %(default)s)')
+                        help='OBJ or TOML files to load (default: %(default)s)')
     parser.add_argument('-s', '--screenshot-dir', type=Path,
                         default=config.SCREENSHOT_DIR,
                         help='Path to screenshot save directory (default: %(default)s)')
@@ -48,7 +48,8 @@ def main():
 
     pygame.display.set_caption("Virtual Camera")
 
-    coords, polygons = load_scene(args.paths)
+    models = load_models(args.paths)
+    coords, polygons = merge_models(models)
 
     renderer = Renderer(camera, screen, polygons, coords)
     clock = pygame.time.Clock()
