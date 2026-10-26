@@ -1,11 +1,11 @@
 """Virtual camera renderer using PyGame and simple OBJ edge rendering."""
 
-from controls import InputHandler
-from renderer import Renderer
-from camera import Camera
-from load import load_models, merge_models
-from hud import draw_hud
-import config
+from virtual_camera.app.controls import InputHandler
+from virtual_camera.render.renderer import Renderer
+from virtual_camera.render.camera import Camera
+from virtual_camera.scene.load import load_models, merge_models
+from virtual_camera.app.hud import draw_hud
+import virtual_camera.config as config
 
 import pygame
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Virtual camera')
     parser.add_argument('paths', nargs='*', type=Path,
-                        default=[config.DEFAULT_OBJ],
+                        default=[config.DEFAULT_SCENE],
                         help='OBJ or TOML files to load (default: %(default)s)')
     parser.add_argument('-s', '--screenshot-dir', type=Path,
                         default=config.SCREENSHOT_DIR,

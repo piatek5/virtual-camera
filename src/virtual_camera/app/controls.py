@@ -1,8 +1,8 @@
-from transform import get_rotation_matrix
-from camera import Camera
-from utils import save_screenshot
-import config
-
+from virtual_camera.render.transform import get_rotation_matrix
+from virtual_camera.render.camera import Camera
+from virtual_camera.app.screenshot import save_screenshot
+import virtual_camera.config as config
+ 
 from pathlib import Path
 import logging
 

@@ -1,4 +1,4 @@
-from model import Model
+from virtual_camera.scene.model import Model
 
 from pathlib import Path
 import logging

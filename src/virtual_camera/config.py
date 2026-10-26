@@ -3,6 +3,11 @@ from pathlib import Path
 import numpy as np
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ASSETS_DIR = PROJECT_ROOT / "assets"
+DEFAULT_SCENE = ASSETS_DIR / "scenes" / "example.toml"
+SCREENSHOT_DIR = PROJECT_ROOT / "screenshots"
+
 WIDTH = 1200
 HEIGHT = 800
 FPS = 60
@@ -16,7 +21,3 @@ ROT_SPEED = 3.0     # radians per second
 ZOOM_SPEED = 60.0   # FOV degrees per second
 FOV_MIN = 10.0
 FOV_MAX = 170.0
-
-DEFAULT_OBJ = Path("example.toml")
-
-SCREENSHOT_DIR = Path("screenshots")

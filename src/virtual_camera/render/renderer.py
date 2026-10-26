@@ -1,7 +1,7 @@
-from transform import get_model_matrix, get_projection_matrix
-from bsp_tree import BSP_tree, Node
-from camera import Camera
-import config
+from virtual_camera.render.transform import get_model_matrix, get_projection_matrix
+from virtual_camera.render.bsp_tree import BSP_tree, Node
+from virtual_camera.render.camera import Camera
+import virtual_camera.config as config
 
 import pygame
 import numpy as np

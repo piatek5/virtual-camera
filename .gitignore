@@ -1,17 +1,17 @@
 # Python-generated files
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+.ruff_cache
 
 # Virtual environments
 .venv
 
-# solids dir
-solids/*
-!solids/.gitignore
+# Assets dir
+assets/*
+!assets/scenes/
+!assets/solids/
+assets/solids/*
+!assets/solids/cube.obj
+!assets/solids/8cube.obj
 
-# screenshots
+# Screenshots
 screenshots/*
