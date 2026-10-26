@@ -51,9 +51,13 @@ def load_scene_file(path: Path) -> list[Model]:
             #TODO: handle file error
 
         model = load_obj(path.parent / entry["file"])
-        model.pos = entry.get('pos', model.pos)
-        model.rot = np.radians(entry.get('rot', model.rot))
-        model.scale = entry.get('scale', model.scale)
+        model = load_obj(path.parent / entry["file"])
+        if "pos" in entry:
+            model.pos = entry["pos"]
+        if "rot" in entry:
+            model.rot = np.radians(entry["rot"])   # only file values (degrees) get converted
+        if "scale" in entry:
+            model.scale = entry["scale"]
 
         models.append(model)
 
