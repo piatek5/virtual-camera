@@ -8,10 +8,12 @@ from hud import draw_hud
 import config
 
 import pygame
-import numpy as np
 
 from pathlib import Path
 import argparse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args(argv=None) -> argparse.Namespace:
@@ -28,12 +30,18 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument('-r', '--rot-speed', type=float,
                         default=config.ROT_SPEED,
                         help='Rotation speed in radians per second (default: %(default)s)')
-    
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Show debug output')
+
     return parser.parse_args(argv)
 
 def main():
     """Run the PyGame render loop for the virtual camera viewer."""
     args = parse_args()
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
 
     camera = Camera(config.STARTING_POS, config.STARTING_ROT, config.STARTING_FOV)
     
@@ -46,6 +54,8 @@ def main():
 
     models = load_models(args.paths)
     coords, polygons = merge_models(models)
+    logger.info("Loaded %d models: %d vertices, %d polygons",
+                len(models), len(coords), len(polygons))
 
     renderer = Renderer(camera, screen, polygons, coords)
     clock = pygame.time.Clock()

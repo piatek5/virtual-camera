@@ -1,7 +1,10 @@
 import numpy as np
 
 from dataclasses import dataclass
+import logging
 import random
+
+logger = logging.getLogger(__name__)
 
 EPSILON = 1e-5
 SLIVER_EPS = 1e-4
@@ -80,6 +83,9 @@ class BSP_tree:
         self.coords: np.ndarray
         self.lam = 0.25
         self.plane_check_num = 10
+        # Build statistics, only used for debug logging
+        self._node_count = 0
+        self._split_count = 0
 
     @staticmethod
     def get_plane(polygon_coords: np.ndarray) -> Plane:
@@ -145,9 +151,15 @@ class BSP_tree:
         polygon_list = self._transform_input(coords, polygons)
 
         self._coords_build = list(coords)
+        self._node_count = 0
+        self._split_count = 0
         self.root = self._build_tree(polygon_list)
 
         self.coords = np.array(self._coords_build)
+        logger.debug(
+            "BSP built: %d polygons in, %d nodes, %d splits, %d -> %d vertices",
+            len(polygon_list), self._node_count, self._split_count,
+            len(coords), len(self.coords))
         
         return self.root
 
@@ -164,20 +176,22 @@ class BSP_tree:
             list[Polygon]: Valid polygons with their coordinates and planes.
         """
         polygon_list = []
+        skipped = 0
         for polygon_indexed in polygons:
             polygon_coords = coords[polygon_indexed]
             try:
                 plane = self.get_plane(polygon_coords)
             except ValueError as e:
-                err = ValueError(
-                    f"Error building a BSP node. Damaged polygon: {polygon_coords}. Skipping."
-                )
-                err.__cause__ = e
-                # TODO: write error to a logger.
+                # One debug line per polygon, one warning summary below.
+                logger.debug("Damaged polygon %s skipped: %s", polygon_indexed, e)
+                skipped += 1
                 continue
 
             polygon_obj = Polygon(polygon_coords, polygon_indexed, plane)
             polygon_list.append(polygon_obj)
+
+        if skipped:
+            logger.warning("%d damaged polygons skipped (run with -v for details)", skipped)
 
         return polygon_list
 
@@ -201,6 +215,7 @@ class BSP_tree:
             return None
             
         node = Node(root_polygon.plane)
+        self._node_count += 1
         node.add_polygon_coords(root_polygon.coords)
         node.add_polygon_indexes(root_polygon.indexes)
 
@@ -218,6 +233,7 @@ class BSP_tree:
                 polygon, root_polygon.plane)
 
             if classification == "SPANNING":
+                self._split_count += 1
                 front_list.append(poly_front)
                 back_list.append(poly_back)
             elif classification == "FRONT":

@@ -4,10 +4,13 @@ from utils import save_screenshot
 import config
 
 from pathlib import Path
+import logging
 
 import pygame
 import numpy as np
 from pygame import Event, Surface
+
+logger = logging.getLogger(__name__)
 
 
 class InputHandler:
@@ -38,7 +41,7 @@ class InputHandler:
             # Take a screenshot with F12
             if event.key == pygame.K_F12:
                 path = save_screenshot(self.screen, self.screenshots)
-                print(f"Saved: {path}")
+                logger.info("Saved screenshot: %s", path)
 
             # Reset position, rotaion and FOV with R
             if event.key == pygame.K_r:
