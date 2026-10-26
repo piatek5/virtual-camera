@@ -1,28 +1,19 @@
+from model import Model
+
 from pathlib import Path
+import tomllib
 
 import numpy as np
 
 
-def load_scene(paths: list[Path]):
-    """Load vertex and edge data from multiple Wavefront OBJ file.
-
-    Args:
-        paths (list[Path]): List of paths pointing to OBJ files.
-
-    Returns:
-        tuple(np.ndarray, list[list[int]]]):
-            - np.ndarray of shape (V, 3) containing all vertice coordinates.
-            - a list of all polygons each described as a list of integer indexes 
-            pointing to a position in the vertice list
-    """
+def merge_models(models: list[Model]):
     all_coords, all_polygons = [], []
     offset = 0
 
-    for path in paths:
-        coords, polygons = load_obj(path)
-        all_coords.append(coords)
+    for model in models:
+        all_coords.append(model.get_world_coords())
 
-        for polygon in polygons:
+        for polygon in model.polygons:
             polygon_shifted = []
 
             for poly_idx in polygon:
@@ -30,21 +21,59 @@ def load_scene(paths: list[Path]):
 
             all_polygons.append(polygon_shifted)
 
-        offset += coords.shape[0]
+        offset += model.coords.shape[0]
+
+    if not models:
+        raise ValueError("No models were loaded, nothing to render.")
 
     return np.vstack(all_coords), all_polygons
 
-def load_obj(filename: Path) -> tuple[np.ndarray, list[list[int]]]:
+def load_models(paths: list[Path]) -> list[Model]:
+    models = []
+    for path in paths:
+        if path.suffix == '.toml':
+            models += load_scene_file(path)
+        elif path.suffix == '.obj':
+            models.append(load_obj(path))
+        else:
+            print('Wrong file format!')
+            continue
+            #TODO: handle wrong format
+    
+    return models
+
+def load_scene_file(path: Path) -> list[Model]:
+    with open(path, "rb") as f: 
+        data = tomllib.load(f)
+
+    models = []
+    for i, entry in enumerate(data.get('model', []), start=1):
+        if 'file' not in entry:
+            print(f"{path}: model #{i} has no 'file'")
+            continue
+            #TODO: handle file error
+
+        model = load_obj(path.parent / entry["file"])
+        model = load_obj(path.parent / entry["file"])
+        if "pos" in entry:
+            model.pos = entry["pos"]
+        if "rot" in entry:
+            model.rot = np.radians(entry["rot"])   # only file values (degrees) get converted
+        if "scale" in entry:
+            model.scale = entry["scale"]
+
+        models.append(model)
+
+    return models
+
+def load_obj(filename: Path) -> Model:
     """Load vertex and edge data from a Wavefront OBJ file.
 
     Args:
         filename (Path): Path to OBJ file.
 
     Returns:
-        tuple(np.ndarray, list[list[int]]]):
-            - np.ndarray of shape (V, 3) containing all vertice coordinates.
-            - a list of all polygons each described as a list of integer indexes 
-            pointing to a position in the vertice list
+        Model object representing one OBJ model.
     """
     coords: list[tuple[float, float, float]] = []
     polygons: list[list[int]] = []
@@ -65,4 +94,4 @@ def load_obj(filename: Path) -> tuple[np.ndarray, list[list[int]]]:
 
     coords_matrix = np.array(coords, dtype=np.float64)
 
-    return coords_matrix, polygons
+    return Model(coords_matrix, polygons)

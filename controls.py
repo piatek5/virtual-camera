@@ -1,9 +1,9 @@
+from transform import get_rotation_matrix
 from camera import Camera
 from utils import save_screenshot
 import config
 
 from pathlib import Path
-import sys
 
 import pygame
 import numpy as np
@@ -16,44 +16,44 @@ class InputHandler:
         screen: Surface,
         screenshots: Path,
         move_speed=config.MOVE_SPEED,
-        rot_speed=config.ROT_SPEED
+        rot_speed=config.ROT_SPEED,
+        zoom_speed=config.ZOOM_SPEED
     ) -> None:
         self.camera = camera
         self.screen = screen
         self.screenshots = screenshots
         self.move_speed = move_speed
         self.rot_speed = rot_speed
+        self.zoom_speed = zoom_speed
         
-    def handle_event(self, event: Event):
+    def handle_event(self, event: Event) -> bool:
+        """Handle a single event. Returns False when the user asked to quit."""
         # Close the programm
         if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+            return False
         # Zoom and unzoom wityh mouse scroll
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.fov -= event.y * 5
-            self.camera.fov = max(10.0, min(170.0, self.camera.fov))
         elif event.type == pygame.KEYDOWN:
             # Take a screenshot with F12
             if event.key == pygame.K_F12:
-                if self.screenshots is None:
-                    save_screenshot(self.screen)
-                else:
-                    save_screenshot(self.screen, self.screenshots)
-                    
+                path = save_screenshot(self.screen, self.screenshots)
+                print(f"Saved: {path}")
+
             # Reset position, rotaion and FOV with R
             if event.key == pygame.K_r:
                 self.camera.reset()
             # Exit with ESC
             if event.key == pygame.K_ESCAPE:
-                pygame.quit()
-                sys.exit()
+                return False
+
+        return True
 
     def apply_held_keys(self, keys, dt):
         # Scale
-        if keys[pygame.K_EQUALS] or keys[pygame.K_KP_PLUS]: self.camera.fov -= 1.0 # Zoom
-        if keys[pygame.K_MINUS] or keys[pygame.K_KP_MINUS]: self.camera.fov += 1.0 # Unzoom
-        self.camera.fov = max(10.0, min(170.0, self.camera.fov))
+        zoom_speed = self.zoom_speed * dt
+        if keys[pygame.K_EQUALS] or keys[pygame.K_KP_PLUS]: self.camera.fov -= zoom_speed # Zoom
+        if keys[pygame.K_MINUS] or keys[pygame.K_KP_MINUS]: self.camera.fov += zoom_speed # Unzoom
 
         # Rotation
         rot_speed = self.rot_speed * dt
@@ -77,6 +77,6 @@ class InputHandler:
         
         # Rotate and translate the small movement delta vector
         if np.any(move_delta[:3] != 0.0):
-            rotation_matrix = self.camera.get_rotation_matrix()
+            rotation_matrix = get_rotation_matrix(self.camera.rot)
             move_delta = rotation_matrix @ move_delta
             self.camera.pos = self.camera.pos + move_delta[:3]

@@ -3,7 +3,7 @@
 from controls import InputHandler
 from renderer import Renderer
 from camera import Camera
-from load import load_scene
+from load import load_models, merge_models
 from hud import draw_hud
 import config
 
@@ -15,10 +15,10 @@ import argparse
 
 
 def parse_args(argv=None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Virtual camera OBJ viewer')
+    parser = argparse.ArgumentParser(description='Virtual camera')
     parser.add_argument('paths', nargs='*', type=Path,
                         default=[config.DEFAULT_OBJ],
-                        help='OBJ files to load (default: %(default)s)')
+                        help='OBJ or TOML files to load (default: %(default)s)')
     parser.add_argument('-s', '--screenshot-dir', type=Path,
                         default=config.SCREENSHOT_DIR,
                         help='Path to screenshot save directory (default: %(default)s)')
@@ -35,20 +35,17 @@ def main():
     """Run the PyGame render loop for the virtual camera viewer."""
     args = parse_args()
 
-    # Starting camera cords and fov
-    starting_pos: np.ndarray = np.array([0.0, 0.0, -5.0])
-    starting_rot: np.ndarray = np.array([0.0, 0.0, 0.0])
-    starting_fov = 90.0
-    camera = Camera(starting_pos, starting_rot, starting_fov)
+    camera = Camera(config.STARTING_POS, config.STARTING_ROT, config.STARTING_FOV)
     
     pygame.init()
 
-    screen = pygame.display.set_mode((camera.WIDTH, camera.HEIGHT))
+    screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
     font = pygame.font.SysFont('Arial', 18)
 
     pygame.display.set_caption("Virtual Camera")
 
-    coords, polygons = load_scene(args.paths)
+    models = load_models(args.paths)
+    coords, polygons = merge_models(models)
 
     renderer = Renderer(camera, screen, polygons, coords)
     clock = pygame.time.Clock()
@@ -61,13 +58,15 @@ def main():
         rot_speed=args.rot_speed
     )
 
-    while True:
-        dt = clock.tick(camera.FPS) / 1000.0
+    running = True
+    while running:
+        dt = clock.tick(config.FPS) / 1000.0
         screen.fill((20, 20, 20))
 
         # Handle pressed keys
         for event in pygame.event.get():
-            input_handler.handle_event(event)
+            if not input_handler.handle_event(event):
+                running = False
 
         # Handle continuous key presses
         keys = pygame.key.get_pressed()
@@ -78,6 +77,8 @@ def main():
         draw_hud(screen, font, camera)
 
         pygame.display.flip()
+
+    pygame.quit()
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,7 @@
+from transform import get_model_matrix, get_projection_matrix
 from bsp_tree import BSP_tree, Node
 from camera import Camera
+import config
 
 import pygame
 import numpy as np
@@ -7,18 +9,24 @@ import numpy as np
 class Renderer:
     Z_NEAR = 0.1
 
-    def __init__(self, camera: Camera, screen: pygame.Surface, polygons: list[list[int]], coords: np.ndarray):
+    def __init__(self, 
+        camera: Camera, 
+        screen: pygame.Surface, 
+        polygons: list[list[int]],
+        coords: np.ndarray
+    ):
         self.camera = camera
-        self.width = camera.WIDTH
-        self.height = camera.HEIGHT
         self.screen = screen
         self.bsp_tree = BSP_tree()
         self.bsp_tree.build(coords, polygons)
+        self.width = config.WIDTH
+        self.height = config.HEIGHT
+        self.aspect_ratio = config.WIDTH / config.HEIGHT
 
     def render(self):
-        model_matrix = self.camera.get_model_matrix()
+        model_matrix = get_model_matrix(self.camera.pos, self.camera.rot)
         view_matrix = np.linalg.inv(model_matrix)
-        proj_matrix = self.camera.get_projection_matrix()
+        proj_matrix = get_projection_matrix(self.camera.fov, self.aspect_ratio)
 
         # Calculate view vertices ahead of time.
         # The view matrix is (4, 4) but coordinates are (V, 3). To skip adding 

@@ -1,0 +1,17 @@
+[[model]] 
+file = "solids/cube.obj"
+pos = [10, 0, 0]
+rot = [0, 45, 0]
+scale = [1, 1, 1]
+
+[[model]] 
+file = "solids/cube.obj"
+pos = [0, 10, 0]
+rot = [0, 45, 0]
+scale = [2, 2, 2]
+
+[[model]] 
+file = "solids/cube.obj"
+pos = [0, 0, 10]
+rot = [0, 45, 0]
+scale = [3, 3, 3]
