@@ -17,6 +17,6 @@ ZOOM_SPEED = 60.0   # FOV degrees per second
 FOV_MIN = 10.0
 FOV_MAX = 170.0
 
-DEFAULT_OBJ = Path("solids/cube.obj")
+DEFAULT_OBJ = Path("example.toml")
 
 SCREENSHOT_DIR = Path("screenshots")
