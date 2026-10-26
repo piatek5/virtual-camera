@@ -34,7 +34,6 @@ class InputHandler:
         # Zoom and unzoom wityh mouse scroll
         elif event.type == pygame.MOUSEWHEEL:
             self.camera.fov -= event.y * 5
-            self.camera.fov = max(10.0, min(170.0, self.camera.fov))
         elif event.type == pygame.KEYDOWN:
             # Take a screenshot with F12
             if event.key == pygame.K_F12:
@@ -55,7 +54,6 @@ class InputHandler:
         zoom_speed = self.zoom_speed * dt
         if keys[pygame.K_EQUALS] or keys[pygame.K_KP_PLUS]: self.camera.fov -= zoom_speed # Zoom
         if keys[pygame.K_MINUS] or keys[pygame.K_KP_MINUS]: self.camera.fov += zoom_speed # Unzoom
-        self.camera.fov = max(10.0, min(170.0, self.camera.fov))
 
         # Rotation
         rot_speed = self.rot_speed * dt

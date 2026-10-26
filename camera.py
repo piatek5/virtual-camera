@@ -1,3 +1,5 @@
+from config import FOV_MIN, FOV_MAX
+
 import numpy as np
 
 
@@ -11,6 +13,14 @@ class Camera:
         self.start_rot = np.array(rot, dtype=float)
         self.start_fov = fov
         self.reset()
+
+    @property
+    def fov(self):
+        return self._fov
+
+    @fov.setter
+    def fov(self, value):
+        self._fov = max(FOV_MIN, min(FOV_MAX, value))
 
     def reset(self):
         self.pos = self.start_pos.copy()
