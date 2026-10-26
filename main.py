@@ -35,11 +35,7 @@ def main():
     """Run the PyGame render loop for the virtual camera viewer."""
     args = parse_args()
 
-    # Starting camera cords and fov
-    starting_pos: np.ndarray = np.array([0.0, 0.0, -5.0])
-    starting_rot: np.ndarray = np.array([0.0, 0.0, 0.0])
-    starting_fov = 90.0
-    camera = Camera(starting_pos, starting_rot, starting_fov)
+    camera = Camera(config.STARTING_POS, config.STARTING_ROT, config.STARTING_FOV)
     
     pygame.init()
 
