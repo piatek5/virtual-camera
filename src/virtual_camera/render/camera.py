@@ -1,4 +1,4 @@
-from config import FOV_MIN, FOV_MAX
+from virtual_camera.config import FOV_MIN, FOV_MAX
 
 import numpy as np
 

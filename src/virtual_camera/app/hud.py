@@ -1,7 +1,7 @@
 import numpy as np
 from pygame import Surface, Font
 
-from camera import Camera
+from virtual_camera.render.camera import Camera
 
 
 def draw_hud(screen: Surface, font: Font, camera: Camera):
