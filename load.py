@@ -23,6 +23,9 @@ def merge_models(models: list[Model]):
 
         offset += model.coords.shape[0]
 
+    if not models:
+        raise ValueError("No models were loaded, nothing to render.")
+
     return np.vstack(all_coords), all_polygons
 
 def load_models(paths: list[Path]) -> list[Model]:
