@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Virtual camera')
     parser.add_argument('paths', nargs='*', type=Path,
-                        default=[config.DEFAULT_OBJ],
+                        default=[config.DEFAULT_SCENE],
                         help='OBJ or TOML files to load (default: %(default)s)')
     parser.add_argument('-s', '--screenshot-dir', type=Path,
                         default=config.SCREENSHOT_DIR,
