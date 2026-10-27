@@ -1,4 +1,4 @@
-"""Virtual camera renderer using PyGame and simple OBJ edge rendering."""
+"""Entry point: parse arguments, load the scene and run the PyGame render loop."""
 
 from virtual_camera.app.controls import InputHandler
 from virtual_camera.render.renderer import Renderer

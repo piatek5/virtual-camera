@@ -1,13 +1,20 @@
 [project]
 name = "virtual-camera"
 version = "0.1.0"
-description = "Add your description here"
+description = "Software 3D renderer with a movable virtual camera, built on NumPy and pygame-ce"
 readme = "README.md"
+authors = [
+    { name = "Borys Piątek", email = "153288169+piatek5@users.noreply.github.com" },
+]
+keywords = ["3d", "renderer", "rasterizer", "camera", "bsp-tree", "pygame", "numpy"]
 requires-python = ">=3.14"
 dependencies = [
     "numpy>=2.4.4",
     "pygame-ce>=2.5.7",
 ]
+
+[project.urls]
+Repository = "https://github.com/piatek5/virtual-camera"
 
 [project.scripts]
 virtual-camera = "virtual_camera.__main__:main"
