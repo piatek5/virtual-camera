@@ -1,17 +1,17 @@
 """Entry point: parse arguments, load the scene and run the PyGame render loop."""
 
-from virtual_camera.app.controls import InputHandler
-from virtual_camera.render.renderer import Renderer
-from virtual_camera.render.camera import Camera
-from virtual_camera.scene.load import load_models, merge_models
-from virtual_camera.app.hud import draw_hud
-import virtual_camera.config as config
+import argparse
+import logging
+from pathlib import Path
 
 import pygame
 
-from pathlib import Path
-import argparse
-import logging
+from virtual_camera import config
+from virtual_camera.app.controls import InputHandler
+from virtual_camera.app.hud import draw_hud
+from virtual_camera.render.camera import Camera
+from virtual_camera.render.renderer import Renderer
+from virtual_camera.scene.load import load_models, merge_models
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Virtual camera')
     parser.add_argument('paths', nargs='*', type=Path,
                         default=[config.DEFAULT_SCENE],
-                        help='OBJ or TOML files to load (default: built-in example scene')
+                        help='OBJ or TOML files to load (default: built-in example scene)')
     parser.add_argument('-s', '--screenshot-dir', type=Path,
                         default=config.SCREENSHOT_DIR,
                         help='Path to screenshot save directory (default: %(default)s)')
@@ -44,7 +44,7 @@ def main():
     )
 
     camera = Camera(config.STARTING_POS, config.STARTING_ROT, config.STARTING_FOV)
-    
+
     pygame.init()
 
     screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
@@ -81,7 +81,7 @@ def main():
         # Handle continuous key presses
         keys = pygame.key.get_pressed()
         input_handler.apply_held_keys(keys, dt)
-        
+
         renderer.render()
 
         draw_hud(screen, font, camera)

@@ -1,6 +1,6 @@
-import numpy as np
-
 import math
+
+import numpy as np
 
 
 def get_scale_matrix(scale: np.ndarray) -> np.ndarray:
@@ -42,7 +42,7 @@ def get_rotation_matrix(rot: np.ndarray) -> np.ndarray:
     ])
 
     return rz @ ry @ rx
-    
+
 def get_translation_matrix(pos: np.ndarray) -> np.ndarray:
     """Create the translation matrix for the camera position.
 
@@ -90,5 +90,5 @@ def get_projection_matrix(fov: float, aspect_ratio: float) -> np.ndarray:
         [0, 0, 1, 0],
         [0, 0, 1, 0]
     ])
-    
+
     return proj

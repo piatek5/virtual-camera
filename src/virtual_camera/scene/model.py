@@ -1,9 +1,9 @@
-from virtual_camera.render.transform import get_model_matrix
-
 from typing import Self, overload
 
-from numpy.typing import ArrayLike
 import numpy as np
+from numpy.typing import ArrayLike
+
+from virtual_camera.render.transform import get_model_matrix
 
 
 class Vec3:

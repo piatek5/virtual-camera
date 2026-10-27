@@ -1,6 +1,6 @@
-from virtual_camera.config import FOV_MIN, FOV_MAX
-
 import numpy as np
+
+from virtual_camera.config import FOV_MAX, FOV_MIN
 
 
 class Camera:
@@ -26,4 +26,3 @@ class Camera:
         self.pos = self.start_pos.copy()
         self.rot = self.start_rot.copy()
         self.fov = self.start_fov
-        

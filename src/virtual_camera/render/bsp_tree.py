@@ -1,8 +1,8 @@
-import numpy as np
-
-from dataclasses import dataclass
 import logging
 import random
+from dataclasses import dataclass
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class Polygon:
     Attributes:
         coords (np.ndarray): np.ndarray of shape (V, 3) containing polygon
             vertex coordinates.
-        indexes (list[int]): List of indexed vertice coordinate. Indexes point 
+        indexes (list[int]): List of indexed vertice coordinate. Indexes point
             to the coords np.ndarray.
         plane (Plane): Plane the polygon lies in.
     """
@@ -49,8 +49,8 @@ class Node:
         self._polygon_indexes_list: list[list[int]] = []
         self.plane: Plane = plane
         self.color: tuple[int, ...] = (
-            random.randint(0, 255), 
-            random.randint(0, 255), 
+            random.randint(0, 255),
+            random.randint(0, 255),
             random.randint(0, 255)
         ) # TODO: Change/delete (temporary showcase measure)
 
@@ -62,12 +62,12 @@ class Node:
 
     def add_polygon_indexes(self, polygon_indexes: list[int]):
             self._polygon_indexes_list.append(polygon_indexes)
-    
+
     def get_polygon_indexes(self):
         return self._polygon_indexes_list
-    
 
-class BSP_tree:
+
+class BSPTree:
     """Binary space partitioning tree built from polygons.
 
     Attributes:
@@ -129,10 +129,10 @@ class BSP_tree:
             raise ValueError("Polygon vertices are colinear!")
 
         # Unit normal vector
-        n = n_raw / norm 
+        n = n_raw / norm
         # Distance from origin
-        d = -np.dot(n, p_0) 
-        
+        d = -np.dot(n, p_0)
+
         return Plane(n, d)
 
     def build(self, coords: np.ndarray, polygons: list[list[int]]) -> Node | None:
@@ -160,7 +160,7 @@ class BSP_tree:
             "BSP built: %d polygons in, %d nodes, %d splits, %d -> %d vertices",
             len(polygon_list), self._node_count, self._split_count,
             len(coords), len(self.coords))
-        
+
         return self.root
 
     def _transform_input(self, coords: np.ndarray, polygons: list[list[int]]
@@ -213,7 +213,7 @@ class BSP_tree:
 
         if root_polygon is None:
             return None
-            
+
         node = Node(root_polygon.plane)
         self._node_count += 1
         node.add_polygon_coords(root_polygon.coords)
@@ -222,7 +222,7 @@ class BSP_tree:
         front_list = []
         back_list = []
 
-        # Go through every polygon to determine it being in front or at the 
+        # Go through every polygon to determine it being in front or at the
         # back of current node polygon/plane. May need to split it and classify
         # it accordingly.
         for polygon in polygon_list:
@@ -271,7 +271,7 @@ class BSP_tree:
         for polygon in random_polygons:
             front, back, splits = self._classify_counts(polygon, polygon_list)
             cost = splits + self.lam * abs(front - back)
-            
+
             if cost < best_cost:
                 best_cost = cost
                 best_polygon = polygon
@@ -309,7 +309,7 @@ class BSP_tree:
                 front += 1
             elif label == "BACK":
                 back += 1
-                
+
         return front, back, splits
 
     def _split_polygon(self, polygon: Polygon, plane: Plane
@@ -363,8 +363,8 @@ class BSP_tree:
 
             vert_idx = polygon.indexes[i]
 
-            # Check whether current vertex is in front, behind or is 
-            # coplanar. Compare the distance to a minimum tolerance. Any point 
+            # Check whether current vertex is in front, behind or is
+            # coplanar. Compare the distance to a minimum tolerance. Any point
             # closer than EPSILON is considered to be coplanar.
             if d_a > EPSILON:
                 front_vert_coords.append(v_a)
@@ -380,7 +380,7 @@ class BSP_tree:
                 front_vert_idxs.append(vert_idx)
                 back_vert_idxs.append(vert_idx)
 
-            # Check whether points lie on opposite sides of plane. True if both 
+            # Check whether points lie on opposite sides of plane. True if both
             # distances from plane have different signs. If they are smaller
             # than EPSILON then they do not lie on any side (coplanar case
             # handled by _classify_by_extent).
@@ -414,7 +414,7 @@ class BSP_tree:
         as lying on the plane, so a polygon is never split unless it has
         vertices beyond EPSILON on both sides. Even then it is split only if
         it reaches at least SLIVER_EPS past the plane on both sides. A smaller
-        crossing is considered modelling noise: splitting would only produce 
+        crossing is considered modelling noise: splitting would only produce
         an almost invisible sliver, so the whole polygon goes to one side.
 
         Args:
@@ -424,12 +424,12 @@ class BSP_tree:
         Returns:
             str: "COPLANAR", "FRONT", "BACK" or "SPANNING" (a real split is needed).
         """
-        # Checking the positions of extremes (and by extension all other negative 
-        # or positive distances) in relation to EPSILON. If all are within EPS 
-        # a polygon is considered coplanar. If not all are and if no distance 
+        # Checking the positions of extremes (and by extension all other negative
+        # or positive distances) in relation to EPSILON. If all are within EPS
+        # a polygon is considered coplanar. If not all are and if no distance
         # makes it past negative EPS, then a polygon is in front. The opposite
-        # goes for positive distances. 
-        # This fixes splitting off anything that from one or both sides 
+        # goes for positive distances.
+        # This fixes splitting off anything that from one or both sides
         # is confined within EPS.
         if d_max <= EPSILON and d_min >= -EPSILON:
             return "COPLANAR"
@@ -441,14 +441,14 @@ class BSP_tree:
         # If no condition is met then we have a polygon that exceeds EPS
         # in both direction (can be considered ready for splitting). However
         # we check whether any eligible vertex is above |SLIVER_EPS|. It is
-        # used to discard a side that could be split off but still is a short 
-        # distance from a plane. We simply lose the "lesser" side if it is 
+        # used to discard a side that could be split off but still is a short
+        # distance from a plane. We simply lose the "lesser" side if it is
         # small enough not to create a very thin split off polygon.
         front_tiny = d_max < SLIVER_EPS
         back_tiny = d_min > -SLIVER_EPS
 
         if front_tiny and back_tiny:
-            # Both sides are slivers but are not coplanar. 
+            # Both sides are slivers but are not coplanar.
             # We pick the thicker one.
             if d_max >= -d_min:
                 return "FRONT"

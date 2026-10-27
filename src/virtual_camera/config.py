@@ -3,7 +3,6 @@ from pathlib import Path
 
 import numpy as np
 
-
 ASSETS_DIR = files("virtual_camera") / "assets"
 DEFAULT_SCENE = ASSETS_DIR / "scenes" / "example.toml"
 SCREENSHOT_DIR = Path("screenshots")

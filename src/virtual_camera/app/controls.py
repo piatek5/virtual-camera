@@ -1,21 +1,21 @@
-from virtual_camera.render.transform import get_rotation_matrix
-from virtual_camera.render.camera import Camera
-from virtual_camera.app.screenshot import save_screenshot
-import virtual_camera.config as config
- 
-from pathlib import Path
 import logging
+from pathlib import Path
 
-import pygame
 import numpy as np
+import pygame
 from pygame import Event, Surface
+
+from virtual_camera import config
+from virtual_camera.app.screenshot import save_screenshot
+from virtual_camera.render.camera import Camera
+from virtual_camera.render.transform import get_rotation_matrix
 
 logger = logging.getLogger(__name__)
 
 
 class InputHandler:
-    def __init__(self, 
-        camera: Camera, 
+    def __init__(self,
+        camera: Camera,
         screen: Surface,
         screenshots: Path,
         move_speed=config.MOVE_SPEED,
@@ -28,7 +28,7 @@ class InputHandler:
         self.move_speed = move_speed
         self.rot_speed = rot_speed
         self.zoom_speed = zoom_speed
-        
+
     def handle_event(self, event: Event) -> bool:
         """Handle a single event. Returns False when the user asked to quit."""
         # Close the programm
@@ -77,7 +77,7 @@ class InputHandler:
         if keys[pygame.K_a]: move_delta[0] -= move_speed # Left
         if keys[pygame.K_q]: move_delta[1] += move_speed # Up
         if keys[pygame.K_e]: move_delta[1] -= move_speed # Down
-        
+
         # Rotate and translate the small movement delta vector
         if np.any(move_delta[:3] != 0.0):
             rotation_matrix = get_rotation_matrix(self.camera.rot)

@@ -1,10 +1,10 @@
-from virtual_camera.scene.model import Model
-
-from pathlib import Path
 import logging
 import tomllib
+from pathlib import Path
 
 import numpy as np
+
+from virtual_camera.scene.model import Model
 
 logger = logging.getLogger(__name__)
 
