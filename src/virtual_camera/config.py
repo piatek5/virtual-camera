@@ -1,12 +1,12 @@
+from importlib.resources import files
 from pathlib import Path
 
 import numpy as np
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ASSETS_DIR = PROJECT_ROOT / "assets"
+ASSETS_DIR = files("virtual_camera") / "assets"
 DEFAULT_SCENE = ASSETS_DIR / "scenes" / "example.toml"
-SCREENSHOT_DIR = PROJECT_ROOT / "screenshots"
+SCREENSHOT_DIR = Path("screenshots")
 
 WIDTH = 1200
 HEIGHT = 800
