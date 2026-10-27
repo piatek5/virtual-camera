@@ -73,3 +73,9 @@ src/virtual_camera/
     solids/     OBJ models
     scenes/     TOML scenes
 ```
+
+## Development
+
+```sh
+uv run ruff check --fix   # lint and autofix
+uv run pyright            # type check
