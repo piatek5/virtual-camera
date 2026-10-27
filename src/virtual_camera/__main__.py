@@ -20,7 +20,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Virtual camera')
     parser.add_argument('paths', nargs='*', type=Path,
                         default=[config.DEFAULT_SCENE],
-                        help='OBJ or TOML files to load (default: %(default)s)')
+                        help='OBJ or TOML files to load (default: built-in example scene')
     parser.add_argument('-s', '--screenshot-dir', type=Path,
                         default=config.SCREENSHOT_DIR,
                         help='Path to screenshot save directory (default: %(default)s)')
