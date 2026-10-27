@@ -7,11 +7,6 @@ dist/
 
 # Assets dir
 assets/*
-!assets/scenes/
-!assets/solids/
-assets/solids/*
-!assets/solids/cube.obj
-!assets/solids/8cube.obj
 
 # Screenshots
 screenshots/*

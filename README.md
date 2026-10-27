@@ -18,17 +18,17 @@ This creates `.venv/`, installs the dependencies from `uv.lock`, and installs th
 ## Running
 
 ```sh
-uv run virtual-camera                          # loads assets/scenes/example.toml
-uv run virtual-camera assets/solids/cube.obj   # any mix of .obj and .toml files
-uv run virtual-camera -v                       # debug logging
-uv run virtual-camera -h                       # all options
+uv run virtual-camera                  # loads the built-in example scene
+uv run virtual-camera model.obj        # any mix of .obj and .toml files
+uv run virtual-camera -v               # debug logging
+uv run virtual-camera -h               # all options
 ```
 
 Options:
 
 | Flag | Meaning | Default |
 |---|---|---|
-| `-s`, `--screenshot-dir` | Where F12 saves screenshots | `screenshots/` |
+| `-s`, `--screenshot-dir` | Where F12 saves screenshots | `screenshots/` in the current directory |
 | `-m`, `--move-speed` | Units per second | 6.0 |
 | `-r`, `--rot-speed` | Radians per second | 3.0 |
 | `-v`, `--verbose` | Show debug output | off |
@@ -68,7 +68,8 @@ src/virtual_camera/
   app/          input handling, HUD, screenshots
   render/       camera, transforms, BSP tree, renderer
   scene/        OBJ/TOML loading and model data
-assets/
-  solids/       OBJ models
-  scenes/       TOML scenes
+  assets/       built-in sample models and the default scene,
+                shipped with the package
+    solids/     OBJ models
+    scenes/     TOML scenes
 ```
