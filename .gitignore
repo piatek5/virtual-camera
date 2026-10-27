@@ -1,6 +1,6 @@
-# Python-generated files
+# Python and uv generated files
 __pycache__/
-.ruff_cache
+dist/
 
 # Virtual environments
 .venv
